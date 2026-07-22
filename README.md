@@ -10,17 +10,17 @@ Below is the core business logic flow for Credit Application & Score-based Evalu
 
 ```mermaid
 flowchart TD
-    A[User Request: Credit Application] --> B{Is User Authenticated?}
-    B -- No --> C[Return 401 Unauthorized]
-    B -- Yes --> D[Fetch User Credit Limit & Active Credits]
+    A[User Request: Credit Application] --> B[Check Authentication]
+    B -->|Not Authenticated| C[Return 401 Unauthorized]
+    B -->|Authenticated| D[Fetch User Limit & Active Credits]
 
-    D --> E{Active Credits Count < MAX_ACTIVE_CREDITS?}
-    E -- No --> F[Reject: Active Credit Limit Reached]
+    D --> E[Check Active Credits Count]
+    E -->|Limit Reached| F[Reject: Active Credit Limit Reached]
+    E -->|Valid| G[Check Available Limit]
 
-    E -- Yes --> G{Requested Amount <= Available Limit?}
-    G -- No --> H[Reject: Insufficient Available Limit]
+    G -->|Insufficient| H[Reject: Insufficient Available Limit]
+    G -->|Sufficient| I[Calculate Interest & Schedule]
 
-    G -- Yes --> I[Calculate Interest & Installment Schedule]
     I --> J[Deduct Amount from Available Limit]
     J --> K[Create Credit & Payment Plan Records]
     K --> L[Publish Event / Queue Notification]
