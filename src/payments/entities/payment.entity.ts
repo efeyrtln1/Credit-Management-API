@@ -8,14 +8,9 @@ import {
 } from 'typeorm';
 import { PaymentPlan } from '../../credits/entities/payment-plan.entity';
 
-export enum PaymentChannel {
-  MANUAL = 'MANUAL',
-  AUTO = 'AUTO',
-}
-
-export enum PaymentStatus {
-  SUCCEEDED = 'SUCCEEDED',
-  FAILED = 'FAILED',
+export enum PaymentType {
+  FULL = 'FULL',
+  SNOOZE = 'SNOOZE',
 }
 
 @Entity('payments')
@@ -26,7 +21,7 @@ export class Payment {
   @Column()
   paymentPlanId!: string;
 
-  @ManyToOne(() => PaymentPlan, (plan) => plan.payments)
+  @ManyToOne(() => PaymentPlan, (plan: PaymentPlan) => plan.payments)
   @JoinColumn({ name: 'paymentPlanId' })
   paymentPlan!: PaymentPlan;
 
@@ -35,16 +30,12 @@ export class Payment {
 
   @Column({
     type: 'enum',
-    enum: PaymentChannel,
-    default: PaymentChannel.MANUAL,
+    enum: PaymentType,
   })
-  channel!: PaymentChannel;
+  type!: PaymentType;
 
-  @Column({
-    type: 'enum',
-    enum: PaymentStatus,
-  })
-  status!: PaymentStatus;
+  @Column({ unique: true })
+  idempotencyKey!: string;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -17,30 +17,30 @@ export enum ScoreGroup {
 @Entity('credit_limits')
 export class CreditLimit {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  userId: string;
+  userId!: string;
 
   @OneToOne(() => User, (user) => user.creditLimit)
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user!: User;
 
   @Column({
     type: 'enum',
     enum: ScoreGroup,
   })
-  scoreGroup: ScoreGroup;
+  scoreGroup!: ScoreGroup;
 
   @Column('decimal', { precision: 12, scale: 2 })
-  baseLimit: number;
+  baseLimit!: number;
 
   @Column('decimal', { precision: 12, scale: 2, default: 0 })
-  usedAmount: number;
+  usedAmount!: number;
 
   @Column('decimal', { precision: 12, scale: 2 })
-  availableLimit: number;
+  availableLimit!: number;
 
   @Column({ type: 'timestamp' })
-  expiresAt: Date;
+  expiresAt!: Date;
 }

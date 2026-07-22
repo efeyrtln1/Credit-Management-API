@@ -23,7 +23,7 @@ export class PaymentPlan {
   @Column()
   creditId!: string;
 
-  @ManyToOne(() => Credit, (credit) => credit.paymentPlans)
+  @ManyToOne(() => Credit, (credit: Credit) => credit.paymentPlans)
   @JoinColumn({ name: 'creditId' })
   credit!: Credit;
 
@@ -52,6 +52,6 @@ export class PaymentPlan {
   @Column({ type: 'timestamp', nullable: true })
   paidAt!: Date | null;
 
-  @OneToMany(() => Payment, (payment) => payment.paymentPlan)
+  @OneToMany(() => Payment, (payment: Payment) => payment.paymentPlan)
   payments!: Payment[];
 }

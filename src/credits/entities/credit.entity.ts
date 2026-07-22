@@ -24,7 +24,7 @@ export class Credit {
   @Column()
   userId!: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, (user: User) => user.credits)
   @JoinColumn({ name: 'userId' })
   user!: User;
 
@@ -50,6 +50,6 @@ export class Credit {
   @CreateDateColumn()
   createdAt!: Date;
 
-  @OneToMany(() => PaymentPlan, (plan) => plan.credit, { cascade: true })
+  @OneToMany(() => PaymentPlan, (plan: PaymentPlan) => plan.credit, { cascade: true })
   paymentPlans!: PaymentPlan[];
 }
