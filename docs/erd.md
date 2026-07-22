@@ -1,3 +1,4 @@
+cat << 'EOF' > docs/erd.md
 # Entity-Relationship Diagram (ERD)
 
 ```mermaid
