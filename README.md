@@ -1,6 +1,6 @@
 # 💳 Credit Management API
 
-A enterprise-grade Backend API built with **NestJS**, **TypeScript**, **PostgreSQL**, and **Redis** for credit limit management, credit applications, automated installment planning, and payment processing.
+An enterprise-grade Backend API built with **NestJS**, **TypeScript**, **PostgreSQL**, and **Redis** for credit limit management, credit applications, automated installment planning, and payment processing.
 
 ---
 
@@ -13,14 +13,14 @@ flowchart TD
     A[User Request: Credit Application] --> B{Is User Authenticated?}
     B -- No --> C[Return 401 Unauthorized]
     B -- Yes --> D[Fetch User Credit Limit & Active Credits]
-    
+
     D --> E{Active Credits Count < MAX_ACTIVE_CREDITS?}
     E -- No --> F[Reject: Active Credit Limit Reached]
-    
+
     E -- Yes --> G{Requested Amount <= Available Limit?}
     G -- No --> H[Reject: Insufficient Available Limit]
-    
-    G -- Yes --> I[Calculate Interest & Installment Schedule Based on Score Group]
+
+    G -- Yes --> I[Calculate Interest & Installment Schedule]
     I --> J[Deduct Amount from Available Limit]
     J --> K[Create Credit & Payment Plan Records]
     K --> L[Publish Event / Queue Notification]
@@ -44,15 +44,14 @@ flowchart TD
 ### 1. Prerequisites
 Make sure you have **Docker Desktop** and **Node.js (v18+)** installed.
 
-### 2. Environment Setup
-Clone the repository and ensure your `.env` file is present in the root directory.
-
-### 3. Run Infrastructure (PostgreSQL & Redis)
+### 2. Infrastructure Setup
+Run PostgreSQL and Redis via Docker Compose:
 ```bash
 docker compose up -d
 ```
 
-### 4. Install Dependencies & Start Application
+### 3. Application Setup
+Install dependencies and run the development server:
 ```bash
 npm install
 npm run start:dev
