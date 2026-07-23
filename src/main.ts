@@ -1,8 +1,28 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+
+  // Cross-Origin desteği
+  app.enableCors();
+
+  // Global DTO Validation Pipe (Gelen gövdeleri otomatik süzgeçten geçirir)
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  // Global Exception Filter Entegrasyonu
+  app.useGlobalFilters(new HttpExceptionFilter());
+
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  console.log(`🚀 Uygulama ${port} portunda sorunsuz çalışıyor.`);
 }
 bootstrap();
