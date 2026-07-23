@@ -1,5 +1,6 @@
 import {
   Injectable,
+  BadRequestException,
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -26,8 +27,14 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
+    const name = dto.name?.trim() || dto.fullName?.trim();
+    if (!name) {
+      throw new BadRequestException('name veya fullName alanı zorunludur');
+    }
+
+    const email = dto.email.trim().toLowerCase();
     const existingUser = await this.userRepository.findOne({
-      where: { email: dto.email },
+      where: { email },
     });
     if (existingUser) {
       throw new ConflictException('Email address is already in use');
@@ -49,9 +56,9 @@ export class AuthService {
     expiresAt.setMonth(expiresAt.getMonth() + expiryMonths);
 
     const user = this.userRepository.create({
-      email: dto.email,
+      email,
       password: hashedPassword,
-      name: dto.name,
+      name,
       phone: dto.phone,
     });
 
@@ -83,8 +90,9 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
+    const email = dto.email.trim().toLowerCase();
     const user = await this.userRepository.findOne({
-      where: { email: dto.email },
+      where: { email },
       relations: { creditLimit: true }, // Nesne formatına güncellendi
     });
 

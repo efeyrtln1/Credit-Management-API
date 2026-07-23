@@ -1,7 +1,7 @@
 import { plainToInstance } from 'class-transformer';
-import { IsEnum, IsNumber, IsString, validateSync } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString, validateSync } from 'class-validator';
 
-enum Environment {
+export enum Environment {
   Development = 'development',
   Production = 'production',
   Test = 'test',
@@ -9,25 +9,39 @@ enum Environment {
 
 class EnvironmentVariables {
   @IsEnum(Environment)
-  NODE_ENV: Environment;
+  @IsOptional()
+  NODE_ENV: Environment = Environment.Development;
 
   @IsNumber()
-  PORT: number;
+  PORT!: number;
 
   @IsString()
-  DB_HOST: string;
+  DB_HOST!: string;
 
   @IsNumber()
-  DB_PORT: number;
+  DB_PORT!: number;
 
   @IsString()
-  DB_USERNAME: string;
+  DB_USERNAME!: string;
 
   @IsString()
-  DB_PASSWORD: string;
+  @IsOptional() // <-- Şifre zorunluluğunu esnettiğimiz kısım
+  DB_PASSWORD?: string;
 
   @IsString()
-  DB_NAME: string;
+  DB_NAME!: string;
+
+  @IsNumber()
+  SCORE_GROUP_LIMIT_A!: number;
+
+  @IsNumber()
+  SCORE_GROUP_LIMIT_B!: number;
+
+  @IsNumber()
+  SCORE_GROUP_LIMIT_C!: number;
+
+  @IsNumber()
+  SCORE_GROUP_LIMIT_D!: number;
 }
 
 export function validate(config: Record<string, unknown>) {

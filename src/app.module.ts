@@ -4,36 +4,44 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { validate } from './config/env.validation';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CreditsModule } from './credits/credits.module';
+import { Credit } from './credits/entities/credit.entity';
+import { PaymentPlan } from './credits/entities/payment-plan.entity';
+import { Payment } from './payments/entities/payment.entity';
+import { PaymentsModule } from './payments/payments.module';
+import { User } from './users/entities/user.entity';
+import { CreditLimit } from './users/entities/credit-limit.entity';
+import { Notification } from './notifications/entities/notification.entity';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
-    // 1. ConfigModule: .env dosyasını okur ve kurallara uygun mu diye validate() ile kontrol eder.
     ConfigModule.forRoot({
-      isGlobal: true, // Projenin her yerinde env değişkenlerini kullanılabilir yapar
-      validate,       // env.validation.ts dosyasından gelen kontrol fonksiyonu
+      isGlobal: true,
+      validate,
     }),
-
-    // 2. TypeOrmModule: Veritabanı bağlantısı (.env verileriyle dinamik kurulur)
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-        host: configService.get<string>('DB_HOST'),
-        port: configService.get<number>('DB_PORT'),
-        username: configService.get<string>('DB_USERNAME'),
-        password: configService.get<string>('DB_PASSWORD'),
-        database: configService.get<string>('DB_NAME'),
+        host: configService.get<string>('DB_HOST', 'localhost'),
+        port: configService.get<number>('DB_PORT', 5432),
+        username: configService.get<string>('DB_USERNAME', 'postgres'),
+        password: configService.get<string>('DB_PASSWORD', 'secretpassword'),
+        database: configService.get<string>('DB_NAME', 'credit_management'),
+        entities: [User, CreditLimit, Credit, PaymentPlan, Payment, Notification],
         autoLoadEntities: true,
-        synchronize: true, // İlerleyen adımlarda migration'a geçince false yapacağız
+        synchronize: true,
       }),
     }),
-
-    // Projedeki Modüller
+    AuthModule,
     UsersModule,
     CreditsModule,
+    PaymentsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
