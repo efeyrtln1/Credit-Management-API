@@ -12,7 +12,7 @@ async function bootstrap() {
   // Global DTO Validation Pipe (Gelen gövdeleri otomatik süzgeçten geçirir)
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: false, // Decorator olmayan alanların geçişine izin verir
+      whitelist: false,
       forbidNonWhitelisted: false, // Bilinmeyen/whitelist dışı alan hatasını fırlatmaz
       transform: true,
     }),
@@ -25,4 +25,4 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`🚀 Uygulama ${port} portunda sorunsuz çalışıyor.`);
 }
-bootstrap();
+void bootstrap();
