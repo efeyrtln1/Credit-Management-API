@@ -42,8 +42,14 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
-    const scoreGroups = [ScoreGroup.A, ScoreGroup.B, ScoreGroup.C, ScoreGroup.D];
-    const randomGroup = scoreGroups[Math.floor(Math.random() * scoreGroups.length)];
+    const scoreGroups = [
+      ScoreGroup.A,
+      ScoreGroup.B,
+      ScoreGroup.C,
+      ScoreGroup.D,
+    ];
+    const randomGroup =
+      scoreGroups[Math.floor(Math.random() * scoreGroups.length)];
 
     const baseLimit = Number(
       this.configService.get<number>(`SCORE_GROUP_LIMIT_${randomGroup}`),
@@ -75,7 +81,10 @@ export class AuthService {
 
     await this.creditLimitRepository.save(creditLimit);
 
-    const token = this.jwtService.sign({ sub: savedUser.id, email: savedUser.email });
+    const token = this.jwtService.sign({
+      sub: savedUser.id,
+      email: savedUser.email,
+    });
 
     return {
       accessToken: token,

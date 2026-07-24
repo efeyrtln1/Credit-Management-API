@@ -41,7 +41,9 @@ export class User {
   @CreateDateColumn()
   createdAt!: Date;
 
-  @OneToOne(() => CreditLimit, (limit: CreditLimit) => limit.user, { cascade: true })
+  @OneToOne(() => CreditLimit, (limit: CreditLimit) => limit.user, {
+    cascade: true,
+  })
   creditLimit!: CreditLimit;
 
   @OneToMany(() => Credit, (credit: Credit) => credit.user)

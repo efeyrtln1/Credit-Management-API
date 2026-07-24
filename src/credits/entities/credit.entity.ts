@@ -50,6 +50,8 @@ export class Credit {
   @CreateDateColumn()
   createdAt!: Date;
 
-  @OneToMany(() => PaymentPlan, (plan: PaymentPlan) => plan.credit, { cascade: true })
+  @OneToMany(() => PaymentPlan, (plan: PaymentPlan) => plan.credit, {
+    cascade: true,
+  })
   paymentPlans!: PaymentPlan[];
 }

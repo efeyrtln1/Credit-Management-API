@@ -15,7 +15,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let errorCode = 'INTERNAL_SERVER_ERROR';
-    let message: string | object = 'Sunucu tarafında beklenmeyen bir hata oluştu.';
+    let message: string | object =
+      'Sunucu tarafında beklenmeyen bir hata oluştu.';
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
