@@ -9,7 +9,9 @@ describe('AuthController', () => {
   beforeEach(async () => {
     authServiceMock = {
       login: jest.fn().mockResolvedValue({ accessToken: 'mockToken' }),
-      register: jest.fn().mockResolvedValue({ id: 1, email: 'test@example.com' }),
+      register: jest
+        .fn()
+        .mockResolvedValue({ id: 1, email: 'test@example.com' }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -32,7 +34,7 @@ describe('AuthController', () => {
   it('should call login on controller', async () => {
     if (typeof controller.login === 'function') {
       const dto = { email: 'test@example.com', password: 'password123' };
-      const res = await controller.login(dto as any);
+      const res = await controller.login(dto);
       expect(res).toBeDefined();
     }
   });
@@ -45,7 +47,7 @@ describe('AuthController', () => {
         name: 'Test',
         phone: '5551234567',
       };
-      const res = await controller.register(dto as any);
+      const res = await controller.register(dto);
       expect(res).toBeDefined();
     }
   });

@@ -70,13 +70,21 @@ describe('AuthService', () => {
       userRepositoryMock.findOne.mockResolvedValue(mockUser);
 
       if (typeof (service as any).validateUser === 'function') {
-        const user = await (service as any).validateUser('test@example.com', 'password123');
+        const user = await (service as any).validateUser(
+          'test@example.com',
+          'password123',
+        );
         expect(user).toBeDefined();
       }
     });
 
     it('should create user on register', async () => {
-      const dto = { email: 'new@example.com', password: 'password123', name: 'Test', phone: '5551234567' };
+      const dto = {
+        email: 'new@example.com',
+        password: 'password123',
+        name: 'Test',
+        phone: '5551234567',
+      };
       userRepositoryMock.create.mockReturnValue(dto);
       userRepositoryMock.save.mockResolvedValue({ id: 1, ...dto });
 
@@ -88,7 +96,7 @@ describe('AuthService', () => {
 
     it('should handle invalid credentials or throw errors', async () => {
       userRepositoryMock.findOne.mockResolvedValue(null);
-      
+
       try {
         if (typeof (service as any).validateUser === 'function') {
           await (service as any).validateUser('wrong@example.com', 'wrongpass');
@@ -99,11 +107,18 @@ describe('AuthService', () => {
     });
 
     it('should handle existing user error on register', async () => {
-      userRepositoryMock.findOne.mockResolvedValue({ id: 1, email: 'exist@example.com' });
+      userRepositoryMock.findOne.mockResolvedValue({
+        id: 1,
+        email: 'exist@example.com',
+      });
 
       try {
         if (typeof (service as any).register === 'function') {
-          await (service as any).register({ email: 'exist@example.com', password: '123', phone: '5551234567' } as any);
+          await (service as any).register({
+            email: 'exist@example.com',
+            password: '123',
+            phone: '5551234567',
+          } as any);
         }
       } catch (e) {
         expect(e).toBeDefined();
