@@ -68,27 +68,35 @@ describe('AuthService', () => {
         password: await bcrypt.hash('password123', 10),
       };
 
-      userRepositoryMock.findOne.mockResolvedValue(mockUser as never);
+      userRepositoryMock.findOne.mockResolvedValue(mockUser);
 
       if (typeof (service as any).validateUser === 'function') {
-        const user = await (service as any).validateUser('test@example.com', 'password123');
+        const user = await (service as any).validateUser(
+          'test@example.com',
+          'password123',
+        );
         expect(user).toBeDefined();
       }
     });
 
     it('should create user on register', async () => {
-      const dto = { email: 'new@example.com', password: 'password123', name: 'Test', phone: '5551234567' };
+      const dto = {
+        email: 'new@example.com',
+        password: 'password123',
+        name: 'Test',
+        phone: '5551234567',
+      };
       // Kullanıcı bulunamadı simüle ediliyor ki ConflictException atmasın
-      userRepositoryMock.findOne.mockResolvedValue(null as never);
-      userRepositoryMock.create.mockReturnValue(dto as never);
-      userRepositoryMock.save.mockResolvedValue({ id: 1, ...dto } as never);
+      userRepositoryMock.findOne.mockResolvedValue(null);
+      userRepositoryMock.create.mockReturnValue(dto);
+      userRepositoryMock.save.mockResolvedValue({ id: 1, ...dto });
 
       const result = await service.register(dto);
       expect(result).toBeDefined();
     });
 
     it('should handle invalid credentials or throw errors', async () => {
-      userRepositoryMock.findOne.mockResolvedValue(null as never);
+      userRepositoryMock.findOne.mockResolvedValue(null);
 
       try {
         if (typeof (service as any).validateUser === 'function') {
@@ -100,10 +108,18 @@ describe('AuthService', () => {
     });
 
     it('should handle existing user error on register', async () => {
-      userRepositoryMock.findOne.mockResolvedValue({ id: 1, email: 'exist@example.com' } as never);
+      userRepositoryMock.findOne.mockResolvedValue({
+        id: 1,
+        email: 'exist@example.com',
+      });
 
       try {
-        await service.register({ email: 'exist@example.com', password: '123', name: 'Test', phone: '5551234567' });
+        await service.register({
+          email: 'exist@example.com',
+          password: '123',
+          name: 'Test',
+          phone: '5551234567',
+        });
       } catch (e) {
         expect(e).toBeDefined();
       }

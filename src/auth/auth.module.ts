@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { AuthService } from './auth.service';
@@ -14,10 +14,21 @@ import { CreditLimit } from '../users/entities/credit-limit.entity';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'super-secret-key'),
-        signOptions: { expiresIn: '1d' },
-      }),
+      useFactory: (configService: ConfigService): JwtModuleOptions => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error('FATAL ERROR: JWT_SECRET environment variable is not defined!');
+        }
+
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN') || '1h';
+
+        return {
+          secret,
+          signOptions: {
+            expiresIn: expiresIn as any, // TypeScript tip çakışmasını önlemek için
+          },
+        };
+      },
     }),
   ],
   controllers: [AuthController],
