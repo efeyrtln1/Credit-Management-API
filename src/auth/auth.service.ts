@@ -81,9 +81,12 @@ export class AuthService {
 
     await this.creditLimitRepository.save(creditLimit);
 
+    // Token payload'ına status eklendi
+    const userStatus = (savedUser as any).status || 'ACTIVE';
     const token = this.jwtService.sign({
       sub: savedUser.id,
       email: savedUser.email,
+      status: userStatus,
     });
 
     return {
@@ -102,7 +105,7 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
     const user = await this.userRepository.findOne({
       where: { email },
-      relations: { creditLimit: true }, // Nesne formatına güncellendi
+      relations: { creditLimit: true },
     });
 
     if (!user) {
@@ -114,7 +117,18 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const token = this.jwtService.sign({ sub: user.id, email: user.email });
+    // Madde 9: Kullanıcı suspend edilmişse login olamaz!
+    const userStatus = (user as any).status;
+    if (userStatus === 'suspend' || userStatus === 'SUSPENDED') {
+      throw new UnauthorizedException('Hesabınız askıya alınmıştır. Giriş yapamazsınız.');
+    }
+
+    // Token payload'ına status ekledik
+    const token = this.jwtService.sign({
+      sub: user.id,
+      email: user.email,
+      status: userStatus || 'ACTIVE',
+    });
 
     return {
       accessToken: token,

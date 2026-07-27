@@ -2,15 +2,18 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { PassportModule } from '@nestjs/passport'; // 1. Eklendi
 
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { User } from '../users/entities/user.entity';
 import { CreditLimit } from '../users/entities/credit-limit.entity';
+import { JwtStrategy } from './strategies/jwt.strategy'; // 2. Eklendi
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, CreditLimit]),
+    PassportModule, // 3. Imports kısmına eklendi
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -30,6 +33,6 @@ import { CreditLimit } from '../users/entities/credit-limit.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, JwtStrategy], // 4. Providers kısmına JwtStrategy eklendi
 })
 export class AuthModule {}
