@@ -10,10 +10,16 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
-import { User } from '../users/entities/user.entity';
+import { User, UserStatus } from '../users/entities/user.entity';
 import { CreditLimit, ScoreGroup } from '../users/entities/credit-limit.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+
+export interface JwtPayload {
+  sub: string;
+  email: string;
+  status: UserStatus;
+}
 
 @Injectable()
 export class AuthService {
@@ -66,6 +72,7 @@ export class AuthService {
       password: hashedPassword,
       name,
       phone: dto.phone,
+      status: UserStatus.ACTIVE,
     });
 
     const savedUser = await this.userRepository.save(user);
@@ -81,13 +88,13 @@ export class AuthService {
 
     await this.creditLimitRepository.save(creditLimit);
 
-    // Token payload'ına status eklendi
-    const userStatus = (savedUser as any).status || 'ACTIVE';
-    const token = this.jwtService.sign({
+    const payload: JwtPayload = {
       sub: savedUser.id,
       email: savedUser.email,
-      status: userStatus,
-    });
+      status: savedUser.status,
+    };
+
+    const token = this.jwtService.sign(payload);
 
     return {
       accessToken: token,
@@ -103,7 +110,7 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const email = dto.email.trim().toLowerCase();
-    const user = await this.userRepository.findOne({
+    const user: User | null = await this.userRepository.findOne({
       where: { email },
       relations: { creditLimit: true },
     });
@@ -117,18 +124,20 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // Madde 9: Kullanıcı suspend edilmişse login olamaz!
-    const userStatus = (user as any).status;
-    if (userStatus === 'suspend' || userStatus === 'SUSPENDED') {
-      throw new UnauthorizedException('Hesabınız askıya alınmıştır. Giriş yapamazsınız.');
+    // Tip güvenli UserStatus enum kontrolü
+    if (user.status === UserStatus.SUSPENDED) {
+      throw new UnauthorizedException(
+        'Hesabınız askıya alınmıştır. Giriş yapamazsınız.',
+      );
     }
 
-    // Token payload'ına status ekledik
-    const token = this.jwtService.sign({
+    const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
-      status: userStatus || 'ACTIVE',
-    });
+      status: user.status || UserStatus.ACTIVE,
+    };
+
+    const token = this.jwtService.sign(payload);
 
     return {
       accessToken: token,

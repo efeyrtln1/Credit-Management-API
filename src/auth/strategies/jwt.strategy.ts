@@ -27,9 +27,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   validate(payload: JwtPayload) {
     // Madde 9: Token geçerli olsa bile kullanıcı suspend edilmişse erişimi engelle
     if (payload.status === 'suspend' || payload.status === 'SUSPENDED') {
-      throw new UnauthorizedException('Hesabınız askıya alınmıştır (suspended).');
+      throw new UnauthorizedException(
+        'Hesabınız askıya alınmıştır (suspended).',
+      );
     }
 
-    return { userId: payload.sub, email: payload.email, status: payload.status };
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      status: payload.status,
+    };
   }
 }

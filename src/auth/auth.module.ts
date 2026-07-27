@@ -20,13 +20,16 @@ import { JwtStrategy } from './strategies/jwt.strategy'; // 2. Eklendi
       useFactory: (configService: ConfigService): JwtModuleOptions => {
         const secret = configService.get<string>('JWT_SECRET');
         if (!secret) {
-          throw new Error('FATAL ERROR: JWT_SECRET environment variable is not defined!');
+          throw new Error(
+            'FATAL ERROR: JWT_SECRET environment variable is not defined!',
+          );
         }
 
         return {
           secret,
           signOptions: {
-            expiresIn: (configService.get<string>('JWT_EXPIRES_IN') || '1h') as `${number}h` | `${number}d` | `${number}s`,
+            expiresIn: (configService.get<string>('JWT_EXPIRES_IN') || '1h') as
+              `${number}h` | `${number}d` | `${number}s`,
           },
         };
       },

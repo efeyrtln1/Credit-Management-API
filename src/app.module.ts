@@ -26,7 +26,7 @@ import { Notification } from './notifications/entities/notification.entity';
       useFactory: () => [
         {
           ttl: 60000, // 1 dakika (milisaniye)
-          limit: 60,  // Maksimum 60 istek
+          limit: 60, // Maksimum 60 istek
         },
       ],
     }),
@@ -42,7 +42,14 @@ import { Notification } from './notifications/entities/notification.entity';
         username: configService.get<string>('DB_USERNAME', 'postgres'),
         password: configService.get<string>('DB_PASSWORD', 'postgres'),
         database: configService.get<string>('DB_DATABASE', 'credit_db'),
-        entities: [User, CreditLimit, Credit, PaymentPlan, Payment, Notification],
+        entities: [
+          User,
+          CreditLimit,
+          Credit,
+          PaymentPlan,
+          Payment,
+          Notification,
+        ],
         synchronize: false,
       }),
     }),
