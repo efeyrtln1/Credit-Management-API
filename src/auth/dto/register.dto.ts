@@ -1,4 +1,11 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MinLength,
+} from 'class-validator';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Geçerli bir e-posta adresi giriniz.' })
@@ -8,7 +15,8 @@ export class RegisterDto {
   @IsString()
   @MinLength(6, { message: 'Şifre en az 6 karakter olmalıdır.' })
   @Matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
-    message: 'Şifre en az bir büyük harf, bir küçük harf ve bir rakam içermelidir.',
+    message:
+      'Şifre en az bir büyük harf, bir küçük harf ve bir rakam içermelidir.',
   })
   password!: string;
 

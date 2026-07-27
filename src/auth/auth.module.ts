@@ -20,12 +20,10 @@ import { CreditLimit } from '../users/entities/credit-limit.entity';
           throw new Error('FATAL ERROR: JWT_SECRET environment variable is not defined!');
         }
 
-        const expiresIn = configService.get<string>('JWT_EXPIRES_IN') || '1h';
-
         return {
           secret,
           signOptions: {
-            expiresIn: expiresIn as any, // TypeScript tip çakışmasını önlemek için
+            expiresIn: (configService.get<string>('JWT_EXPIRES_IN') || '1h') as `${number}h` | `${number}d` | `${number}s`,
           },
         };
       },
