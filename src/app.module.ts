@@ -50,7 +50,7 @@ import { Notification } from './notifications/entities/notification.entity';
           Payment,
           Notification,
         ],
-        synchronize: false,
+        synchronize: true,
       }),
     }),
 

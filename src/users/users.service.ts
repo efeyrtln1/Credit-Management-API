@@ -5,14 +5,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreditLimit } from './entities/credit-limit.entity';
-import { User } from './entities/user.entity';
+import { CreditLimit, ScoreGroup } from './entities/credit-limit.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
     @InjectRepository(CreditLimit)
     private readonly creditLimitRepository: Repository<CreditLimit>,
   ) {}
@@ -23,7 +20,9 @@ export class UsersService {
     });
 
     if (!creditLimit) {
-      throw new NotFoundException('Kullanıcıya ait kredi limiti bulunamadı.');
+      throw new NotFoundException(
+        'Kullanıcıya ait kredi limit bilgisi bulunamadı.',
+      );
     }
 
     return creditLimit;
@@ -32,16 +31,43 @@ export class UsersService {
   async useCredit(userId: string, amount: number): Promise<CreditLimit> {
     const creditLimit = await this.getCreditLimitByUserId(userId);
 
-    const availableLimitNum = Number(creditLimit.availableLimit);
-    const usedAmountNum = Number(creditLimit.usedAmount);
-
-    if (availableLimitNum < amount) {
+    const available = Number(creditLimit.availableLimit);
+    if (available < amount) {
       throw new BadRequestException('Yetersiz kredi limiti.');
     }
 
-    creditLimit.availableLimit = availableLimitNum - amount;
-    creditLimit.usedAmount = usedAmountNum + amount;
+    creditLimit.availableLimit = available - amount;
+    creditLimit.usedAmount = Number(creditLimit.usedAmount) + amount;
 
-    return await this.creditLimitRepository.save(creditLimit);
+    return this.creditLimitRepository.save(creditLimit);
+  }
+
+  async applyForLimitIncrease(userId: string, requestedAmount: number) {
+    const creditLimit = await this.getCreditLimitByUserId(userId);
+
+    // İş Kuralı: D skor grubu yüksek riskli olduğu için limit artırımı alamaz.
+    if (creditLimit.scoreGroup === ScoreGroup.D) {
+      return {
+        status: 'REJECTED',
+        message:
+          'Kredi skor grubunuz (D) nedeniyle limit artırım talebiniz onaylanmadı.',
+        currentLimit: creditLimit.baseLimit,
+      };
+    }
+
+    const newBaseLimit = Number(creditLimit.baseLimit) + requestedAmount;
+    const newAvailableLimit =
+      Number(creditLimit.availableLimit) + requestedAmount;
+
+    creditLimit.baseLimit = newBaseLimit;
+    creditLimit.availableLimit = newAvailableLimit;
+
+    const updatedLimit = await this.creditLimitRepository.save(creditLimit);
+
+    return {
+      status: 'APPROVED',
+      message: 'Limit artırım talebiniz başarıyla onaylandı!',
+      creditLimit: updatedLimit,
+    };
   }
 }

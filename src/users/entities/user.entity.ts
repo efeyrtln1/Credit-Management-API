@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  UpdateDateColumn,
   OneToOne,
   OneToMany,
 } from 'typeorm';
@@ -28,7 +29,7 @@ export class User {
   @Column()
   name!: string;
 
-  @Column()
+  @Column({ nullable: true })
   phone!: string;
 
   @Column({
@@ -41,11 +42,13 @@ export class User {
   @CreateDateColumn()
   createdAt!: Date;
 
-  @OneToOne(() => CreditLimit, (limit: CreditLimit) => limit.user, {
-    cascade: true,
-  })
+  @UpdateDateColumn()
+  updatedAt!: Date;
+
+  @OneToOne(() => CreditLimit, (creditLimit) => creditLimit.user)
   creditLimit!: CreditLimit;
 
-  @OneToMany(() => Credit, (credit: Credit) => credit.user)
+  // 🔽 Credit ilişkisi eklenerek credit.entity.ts tarafındaki Linter uyarısı çözüldü
+  @OneToMany(() => Credit, (credit) => credit.user)
   credits!: Credit[];
 }

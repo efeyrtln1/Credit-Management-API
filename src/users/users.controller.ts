@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Post,
   Body,
   UseGuards,
   Request,
@@ -16,6 +17,7 @@ import {
 import { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
+import { ApplyLimitDto } from './dto/apply-limit.dto';
 
 interface RequestWithUser extends ExpressRequest {
   user: {
@@ -67,5 +69,26 @@ export class UsersController {
     }
     const userId = req.user.userId;
     return this.usersService.useCredit(userId, amount);
+  }
+
+  @Post('me/apply')
+  @ApiOperation({ summary: 'Kredi limiti artırım başvurusunda bulunur' })
+  @ApiResponse({
+    status: 201,
+    description: 'Başvuru sonucu (APPROVED veya REJECTED).',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Geçersiz talep miktarı veya formatı.',
+  })
+  async applyForLimitIncrease(
+    @Request() req: RequestWithUser,
+    @Body() applyLimitDto: ApplyLimitDto,
+  ) {
+    const userId = req.user.userId;
+    return this.usersService.applyForLimitIncrease(
+      userId,
+      applyLimitDto.requestedAmount,
+    );
   }
 }
