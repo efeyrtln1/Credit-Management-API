@@ -6,6 +6,13 @@ describe('UsersController', () => {
   let controller: UsersController;
   let serviceMock: Record<string, jest.Mock>;
 
+  const mockUserRequest = {
+    user: {
+      userId: '1',
+      email: 'test@example.com',
+    },
+  } as Parameters<UsersController['getMyCreditLimit']>[0];
+
   beforeEach(async () => {
     serviceMock = {
       getCreditLimitByUserId: jest.fn(),
@@ -31,23 +38,22 @@ describe('UsersController', () => {
   });
 
   it('should call getMyCreditLimit', async () => {
-    const req = { user: { userId: '1' } } as any;
     serviceMock.getCreditLimitByUserId.mockResolvedValue({});
-    await controller.getMyCreditLimit(req);
+    await controller.getMyCreditLimit(mockUserRequest);
     expect(serviceMock.getCreditLimitByUserId).toHaveBeenCalledWith('1');
   });
 
   it('should call useCreditLimit', async () => {
-    const req = { user: { userId: '1' } } as any;
     serviceMock.useCredit.mockResolvedValue({});
-    await controller.useCreditLimit(req, 100);
+    await controller.useCreditLimit(mockUserRequest, 100);
     expect(serviceMock.useCredit).toHaveBeenCalledWith('1', 100);
   });
 
   it('should call applyForLimitIncrease', async () => {
-    const req = { user: { userId: '1' } } as any;
     serviceMock.applyForLimitIncrease.mockResolvedValue({});
-    await controller.applyForLimitIncrease(req, { requestedAmount: 500 });
+    await controller.applyForLimitIncrease(mockUserRequest, {
+      requestedAmount: 500,
+    });
     expect(serviceMock.applyForLimitIncrease).toHaveBeenCalledWith('1', 500);
   });
 });

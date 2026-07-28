@@ -28,7 +28,11 @@ describe('JwtStrategy', () => {
 
   describe('validate', () => {
     it('should validate and return user payload for active status', () => {
-      const payload = { sub: '123', email: 'test@example.com', status: 'ACTIVE' };
+      const payload = {
+        sub: '123',
+        email: 'test@example.com',
+        status: 'ACTIVE',
+      };
       const result = strategy.validate(payload);
 
       expect(result).toEqual({
@@ -39,13 +43,21 @@ describe('JwtStrategy', () => {
     });
 
     it('should throw UnauthorizedException if user status is SUSPENDED', () => {
-      const payload = { sub: '123', email: 'test@example.com', status: 'SUSPENDED' };
+      const payload = {
+        sub: '123',
+        email: 'test@example.com',
+        status: 'SUSPENDED',
+      };
 
       expect(() => strategy.validate(payload)).toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException if user status is suspend', () => {
-      const payload = { sub: '123', email: 'test@example.com', status: 'suspend' };
+      const payload = {
+        sub: '123',
+        email: 'test@example.com',
+        status: 'suspend',
+      };
 
       expect(() => strategy.validate(payload)).toThrow(UnauthorizedException);
     });
