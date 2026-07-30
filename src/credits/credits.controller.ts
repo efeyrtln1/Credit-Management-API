@@ -3,7 +3,6 @@ import {
   Post,
   Get,
   Body,
-  Param,
   Query,
   UseGuards,
   Request,
@@ -39,7 +38,7 @@ export class CreditsController {
   @ApiQuery({ name: 'amount', example: 10000, required: true })
   @ApiQuery({ name: 'termCount', example: 6, required: true })
   @ApiQuery({ name: 'scoreGroup', example: 'A', required: false })
-  async calculateRepayment(
+  calculateRepayment(
     @Query('amount') amount: string,
     @Query('termCount') termCount: string,
     @Query('scoreGroup') scoreGroup?: string,

@@ -115,8 +115,8 @@ describe('CreditsService', () => {
   });
 
   describe('calculateRepayment', () => {
-    it('should calculate repayment schedule and late fee projections correctly for default group', async () => {
-      const result = await service.calculateRepayment(10000, 6);
+    it('should calculate repayment schedule and late fee projections correctly for default group', () => {
+      const result = service.calculateRepayment(10000, 6);
 
       expect(result.amount).toBe(10000);
       expect(result.termCount).toBe(6);
@@ -127,8 +127,8 @@ describe('CreditsService', () => {
       expect(result.schedule[0].lateAmounts[1].daysLate).toBe(30);
     });
 
-    it('should calculate correctly for custom score group A', async () => {
-      const result = await service.calculateRepayment(5000, 3, 'A');
+    it('should calculate correctly for custom score group A', () => {
+      const result = service.calculateRepayment(5000, 3, 'A');
 
       expect(result.scoreGroup).toBe('A');
       expect(result.interestRate).toBe(0.015);

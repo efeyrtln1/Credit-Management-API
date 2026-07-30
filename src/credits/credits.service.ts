@@ -111,13 +111,7 @@ export class CreditsService {
     });
   }
 
-  // 👈 DAY 4: Borç Hesaplayıcı (Calculator) Metodu
-  // DAY 4: Borç Hesaplayıcı (Calculator) Metodu
-  async calculateRepayment(
-    amount: number,
-    termCount: number,
-    scoreGroup = 'D',
-  ) {
+  calculateRepayment(amount: number, termCount: number, scoreGroup = 'D') {
     const interestRates: Record<string, number> = {
       A: 0.015,
       B: 0.02,

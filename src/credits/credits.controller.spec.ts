@@ -11,7 +11,7 @@ describe('CreditsController', () => {
       userId: '1',
       email: 'test@example.com',
     },
-  } as Parameters<CreditsController['applyForCredit']>[0];
+  };
 
   beforeEach(async () => {
     serviceMock = {
@@ -37,11 +37,12 @@ describe('CreditsController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('should call calculateRepayment', async () => {
+  it('should call calculateRepayment', () => {
     const mockCalculation = { amount: 10000, termCount: 6, schedule: [] };
-    serviceMock.calculateRepayment.mockResolvedValue(mockCalculation);
+    serviceMock.calculateRepayment.mockReturnValue(mockCalculation);
 
-    const result = await controller.calculateRepayment('10000', '6', 'A');
+    // 👈 'await' kaldırıldı ve mockReturnValue yapıldı
+    const result = controller.calculateRepayment('10000', '6', 'A');
 
     expect(serviceMock.calculateRepayment).toHaveBeenCalledWith(10000, 6, 'A');
     expect(result).toEqual(mockCalculation);
