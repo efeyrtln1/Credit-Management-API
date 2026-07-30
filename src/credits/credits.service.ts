@@ -63,11 +63,11 @@ export class CreditsService {
 
         const plan = this.paymentPlanRepository.create({
           creditId: savedCredit.id,
-          installmentNo: i, // 👈 installmentNumber yerine installmentNo
+          installmentNo: i,
           amount: monthlyInstallment,
           dueDate: dueDateObj.toISOString().split('T')[0],
-          status: PaymentPlanStatus.UNPAID, // 👈 PENDING yerine UNPAID
-          lateFeeRate: 0, // 👈 Entity'de zorunlu olan lateFeeRate eklendi
+          status: PaymentPlanStatus.UNPAID,
+          lateFeeRate: 0,
           snoozeCount: 0,
         });
 
@@ -109,5 +109,89 @@ export class CreditsService {
       },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  // 👈 DAY 4: Borç Hesaplayıcı (Calculator) Metodu
+  // DAY 4: Borç Hesaplayıcı (Calculator) Metodu
+  async calculateRepayment(
+    amount: number,
+    termCount: number,
+    scoreGroup = 'D',
+  ) {
+    const interestRates: Record<string, number> = {
+      A: 0.015,
+      B: 0.02,
+      C: 0.025,
+      D: 0.03,
+    };
+    const lateFeeRates: Record<string, number> = {
+      A: 0.0005,
+      B: 0.0008,
+      C: 0.001,
+      D: 0.0015,
+    };
+
+    const interestRate = interestRates[scoreGroup] ?? 0.03;
+    const lateFeeRate = lateFeeRates[scoreGroup] ?? 0.0015;
+
+    const totalInterest = amount * interestRate * termCount;
+    const totalPayable = amount + totalInterest;
+    const installmentAmount = Number((totalPayable / termCount).toFixed(2));
+
+    // 👈 'schedule' dizisine explicit tip tanımlaması yapıldı
+    const schedule: Array<{
+      installmentNo: number;
+      dueDate: string;
+      amount: number;
+      lateAmounts: Array<{
+        daysLate: number;
+        lateFee: number;
+        totalDue: number;
+      }>;
+    }> = [];
+
+    const today = new Date();
+
+    for (let i = 1; i <= termCount; i++) {
+      const dueDate = new Date(today);
+      dueDate.setMonth(dueDate.getMonth() + i);
+
+      const late7DaysFee = Number(
+        (installmentAmount * lateFeeRate * 7).toFixed(2),
+      );
+      const late30DaysFee = Number(
+        (installmentAmount * lateFeeRate * 30).toFixed(2),
+      );
+
+      schedule.push({
+        installmentNo: i,
+        dueDate: dueDate.toISOString().split('T')[0],
+        amount: installmentAmount,
+        lateAmounts: [
+          {
+            daysLate: 7,
+            lateFee: late7DaysFee,
+            totalDue: Number((installmentAmount + late7DaysFee).toFixed(2)),
+          },
+          {
+            daysLate: 30,
+            lateFee: late30DaysFee,
+            totalDue: Number((installmentAmount + late30DaysFee).toFixed(2)),
+          },
+        ],
+      });
+    }
+
+    return {
+      amount,
+      termCount,
+      scoreGroup,
+      interestRate,
+      lateFeeRate,
+      installmentAmount,
+      totalPayable: Number(totalPayable.toFixed(2)),
+      totalInterest: Number(totalInterest.toFixed(2)),
+      schedule,
+    };
   }
 }

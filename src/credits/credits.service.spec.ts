@@ -113,4 +113,27 @@ describe('CreditsService', () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe('calculateRepayment', () => {
+    it('should calculate repayment schedule and late fee projections correctly for default group', async () => {
+      const result = await service.calculateRepayment(10000, 6);
+
+      expect(result.amount).toBe(10000);
+      expect(result.termCount).toBe(6);
+      expect(result.scoreGroup).toBe('D');
+      expect(result.schedule).toHaveLength(6);
+      expect(result.schedule[0].lateAmounts).toHaveLength(2);
+      expect(result.schedule[0].lateAmounts[0].daysLate).toBe(7);
+      expect(result.schedule[0].lateAmounts[1].daysLate).toBe(30);
+    });
+
+    it('should calculate correctly for custom score group A', async () => {
+      const result = await service.calculateRepayment(5000, 3, 'A');
+
+      expect(result.scoreGroup).toBe('A');
+      expect(result.interestRate).toBe(0.015);
+      expect(result.lateFeeRate).toBe(0.0005);
+      expect(result.schedule).toHaveLength(3);
+    });
+  });
 });

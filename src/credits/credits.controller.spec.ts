@@ -11,12 +11,13 @@ describe('CreditsController', () => {
       userId: '1',
       email: 'test@example.com',
     },
-  };
+  } as Parameters<CreditsController['applyForCredit']>[0];
 
   beforeEach(async () => {
     serviceMock = {
       applyForCredit: jest.fn(),
       getMyCredits: jest.fn(),
+      calculateRepayment: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -34,6 +35,16 @@ describe('CreditsController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('should call calculateRepayment', async () => {
+    const mockCalculation = { amount: 10000, termCount: 6, schedule: [] };
+    serviceMock.calculateRepayment.mockResolvedValue(mockCalculation);
+
+    const result = await controller.calculateRepayment('10000', '6', 'A');
+
+    expect(serviceMock.calculateRepayment).toHaveBeenCalledWith(10000, 6, 'A');
+    expect(result).toEqual(mockCalculation);
   });
 
   it('should call applyForCredit', async () => {
