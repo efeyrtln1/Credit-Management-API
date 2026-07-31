@@ -25,55 +25,45 @@ flowchart TD
     J --> K[Create Credit & Payment Plan Records]
     K --> L[Publish Event / Queue Notification]
     L --> M[Return Success Response]
-```
 
----
+🛠️ Tech Stack & Features
+Framework: NestJS (Node.js / TypeScript)
+Database: PostgreSQL (via TypeORM)
+Caching & Queue: Redis
+Containerization: Docker & Docker Compose
+Security: JWT Authentication & Bcrypt Password Hashing
 
-## 🛠️ Tech Stack & Features
+🚀 Quick Start Guide
+1. Prerequisites
+Make sure you have Docker Desktop and Node.js (v18+) installed.
 
-* **Framework:** NestJS (Node.js / TypeScript)
-* **Database:** PostgreSQL (via TypeORM)
-* **Caching & Queue:** Redis
-* **Containerization:** Docker & Docker Compose
-* **Security:** JWT Authentication & Bcrypt Password Hashing
-
----
-
-## 🚀 Quick Start Guide
-
-### 1. Prerequisites
-Make sure you have **Docker Desktop** and **Node.js (v18+)** installed.
-
-### 2. Infrastructure Setup
+2. Infrastructure Setup
 Run PostgreSQL and Redis via Docker Compose:
-```bash
-docker compose up -d
-```
 
-### 3. Application Setup
+Bash
+docker compose up -d
+3. Application Setup
 Install dependencies and run the development server:
-```bash
+
+Bash
 npm install
 npm run start:dev
-```
+The API will be available at: http://localhost:3000
 
-The API will be available at: `http://localhost:3000`
+🔐 Auth & Credits Endpoints
+Method	Endpoint	Description
+POST	/auth/register	Registers a new user & assigns a random score group (A-D) with base limit.
+POST	/auth/login	Authenticates user & returns JWT Access Token.
+GET	/users/me	Returns current user profile & credit limit summary.
+GET	/credits/calculator	Public repayment & 7/30-day late fee calculator.
+POST	/credits/apply	Applies for a credit, generates payment schedule.
+GET	/credits/me	Lists all active & historical credits for the user.
+GET	/credits/:id	Returns detailed credit information.
+GET	/credits/:id/payment-plans	Lists installments with live computed currentLate fees.
 
----
-
-## 🔐 Auth Endpoints
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/auth/register` | Registers a new user & assigns a random score group (A-D) with base limit. |
-| `POST` | `/auth/login` | Authenticates user & returns JWT Access Token. |
-
-```markdown
-## 📚 Architecture & Design Diagrams
-
-Detailed technical diagrams for the system workflows can be found in the `/docs` directory:
-
-* 📊 **[Entity Relationship Diagram (ERD)](docs/erd.md)**
-* 🔄 **[Registration & Limit Flow Diagram](docs/register-flow.md)**
-* 💳 **[Credit Application Flow Diagram](docs/credit-application-flow.md)**
-* 🧮 **[Calculator Engine Flow Diagram](docs/calculator-flow.md)**
+📚 Architecture & Design Diagrams
+Detailed technical diagrams for the system workflows can be found in the /docs directory:
+📊 Entity Relationship Diagram (ERD)
+🔄 Registration & Limit Flow Diagram
+💳 Credit Application Flow Diagram
+🧮 Calculator Engine Flow Diagram
