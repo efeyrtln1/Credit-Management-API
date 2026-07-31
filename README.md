@@ -67,3 +67,13 @@ The API will be available at: `http://localhost:3000`
 | :--- | :--- | :--- |
 | `POST` | `/auth/register` | Registers a new user & assigns a random score group (A-D) with base limit. |
 | `POST` | `/auth/login` | Authenticates user & returns JWT Access Token. |
+
+```markdown
+## 📚 Architecture & Design Diagrams
+
+Detailed technical diagrams for the system workflows can be found in the `/docs` directory:
+
+* 📊 **[Entity Relationship Diagram (ERD)](docs/erd.md)**
+* 🔄 **[Registration & Limit Flow Diagram](docs/register-flow.md)**
+* 💳 **[Credit Application Flow Diagram](docs/credit-application-flow.md)**
+* 🧮 **[Calculator Engine Flow Diagram](docs/calculator-flow.md)**

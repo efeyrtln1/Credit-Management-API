@@ -17,6 +17,8 @@ describe('CreditsController', () => {
     serviceMock = {
       applyForCredit: jest.fn(),
       getMyCredits: jest.fn(),
+      getCreditById: jest.fn(),
+      getPaymentPlansByCreditId: jest.fn(),
       calculateRepayment: jest.fn(),
     };
 
@@ -41,7 +43,6 @@ describe('CreditsController', () => {
     const mockCalculation = { amount: 10000, termCount: 6, schedule: [] };
     serviceMock.calculateRepayment.mockReturnValue(mockCalculation);
 
-    // 👈 'await' kaldırıldı ve mockReturnValue yapıldı
     const result = controller.calculateRepayment('10000', '6', 'A');
 
     expect(serviceMock.calculateRepayment).toHaveBeenCalledWith(10000, 6, 'A');
@@ -64,5 +65,20 @@ describe('CreditsController', () => {
     serviceMock.getMyCredits.mockResolvedValue([]);
     await controller.getMyCredits(mockUserRequest);
     expect(serviceMock.getMyCredits).toHaveBeenCalledWith('1');
+  });
+
+  it('should call getCreditById', async () => {
+    serviceMock.getCreditById.mockResolvedValue({});
+    await controller.getCreditById(mockUserRequest, 'credit-1');
+    expect(serviceMock.getCreditById).toHaveBeenCalledWith('1', 'credit-1');
+  });
+
+  it('should call getPaymentPlans', async () => {
+    serviceMock.getPaymentPlansByCreditId.mockResolvedValue([]);
+    await controller.getPaymentPlans(mockUserRequest, 'credit-1');
+    expect(serviceMock.getPaymentPlansByCreditId).toHaveBeenCalledWith(
+      '1',
+      'credit-1',
+    );
   });
 });

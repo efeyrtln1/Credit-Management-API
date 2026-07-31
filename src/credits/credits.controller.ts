@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Body,
+  Param,
   Query,
   UseGuards,
   Request,
@@ -13,6 +14,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiQuery,
+  ApiParam,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreditsService } from './credits.service';
@@ -66,7 +68,7 @@ export class CreditsController {
     return this.creditsService.applyForCredit(req.user.userId, applyCreditDto);
   }
 
-  // 3. AUTHENTICATED: Kullanıcının Kredilerini Listeleme
+  // 3. AUTHENTICATED: Kullanıcının Çektiği Tüm Krediler
   @Get('me')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
@@ -75,5 +77,34 @@ export class CreditsController {
   })
   async getMyCredits(@Request() req: RequestWithUser) {
     return this.creditsService.getMyCredits(req.user.userId);
+  }
+
+  // 4. AUTHENTICATED: Tek Bir Kredinin Detayı
+  @Get(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Belirtilen kredinin detayını getirir' })
+  @ApiParam({ name: 'id', description: 'Kredi ID' })
+  async getCreditById(
+    @Request() req: RequestWithUser,
+    @Param('id') id: string,
+  ) {
+    return this.creditsService.getCreditById(req.user.userId, id);
+  }
+
+  // 5. AUTHENTICATED: Kredinin Taksit Planları (Canlı Gecikme Faizleriyle)
+  @Get(':id/payment-plans')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Krediye ait taksit planlarını ve varsa canlı gecikme faizlerini getirir',
+  })
+  @ApiParam({ name: 'id', description: 'Kredi ID' })
+  async getPaymentPlans(
+    @Request() req: RequestWithUser,
+    @Param('id') id: string,
+  ) {
+    return this.creditsService.getPaymentPlansByCreditId(req.user.userId, id);
   }
 }

@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Credit, CreditStatus } from './entities/credit.entity';
@@ -30,10 +34,26 @@ export class CreditsService {
       );
     }
 
-    // 2. Faiz ve Taksit Hesaplama (Aylık %2.5 sabit faiz)
-    const monthlyInterestRate = 0.025;
+    // 2. Score Group konfigürasyon haritası
+    const interestRates: Record<string, number> = {
+      A: 0.015,
+      B: 0.02,
+      C: 0.025,
+      D: 0.03,
+    };
+    const lateFeeRates: Record<string, number> = {
+      A: 0.0005,
+      B: 0.0008,
+      C: 0.001,
+      D: 0.0015,
+    };
+
+    const userGroup = creditLimit.scoreGroup || 'D';
+    const monthlyInterestRate = interestRates[userGroup] ?? 0.03;
+    const dailyLateFeeRate = lateFeeRates[userGroup] ?? 0.0015;
+
     const totalPayable = amount * (1 + monthlyInterestRate * termCount);
-    const monthlyInstallment = totalPayable / termCount;
+    const monthlyInstallment = Number((totalPayable / termCount).toFixed(2));
 
     // Transaction başlatıyoruz
     const queryRunner = this.dataSource.createQueryRunner();
@@ -41,19 +61,19 @@ export class CreditsService {
     await queryRunner.startTransaction();
 
     try {
-      // 3. Kredi Kaydını Oluştur
+      // 3. Kredi Kaydını Oluştur (Faiz Oranı Snapshot Alındı)
       const credit = this.creditRepository.create({
         userId,
         amount,
         termCount,
         interestRate: monthlyInterestRate,
-        totalPayable,
+        totalPayable: Number(totalPayable.toFixed(2)),
         status: CreditStatus.ACTIVE,
       });
 
       const savedCredit = await queryRunner.manager.save(Credit, credit);
 
-      // 4. Taksit Planını Oluştur
+      // 4. Taksit Planını Oluştur (Gecikme Oranı Snapshot Alındı)
       const paymentPlans: PaymentPlan[] = [];
       const now = new Date();
 
@@ -67,7 +87,7 @@ export class CreditsService {
           amount: monthlyInstallment,
           dueDate: dueDateObj.toISOString().split('T')[0],
           status: PaymentPlanStatus.UNPAID,
-          lateFeeRate: 0,
+          lateFeeRate: dailyLateFeeRate,
           snoozeCount: 0,
         });
 
@@ -88,7 +108,7 @@ export class CreditsService {
           'Kredi başvurunuz başarıyla onaylandı ve taksit planı oluşturuldu.',
         credit: savedCredit,
         paymentPlansSummary: {
-          totalPayable,
+          totalPayable: Number(totalPayable.toFixed(2)),
           monthlyInstallment,
           termCount,
         },
@@ -108,6 +128,64 @@ export class CreditsService {
         paymentPlans: true,
       },
       order: { createdAt: 'DESC' },
+    });
+  }
+
+  // GET /credits/:id -> Tekil Kredi Detayı
+  async getCreditById(userId: string, creditId: string): Promise<Credit> {
+    const credit = await this.creditRepository.findOne({
+      where: { id: creditId, userId },
+      relations: { paymentPlans: true },
+    });
+
+    if (!credit) {
+      throw new NotFoundException('Kredi bulunamadı.');
+    }
+
+    return credit;
+  }
+
+  // GET /credits/:id/payment-plans -> Taksit Planları (Canlı LATE Hesaplamalı)
+  async getPaymentPlansByCreditId(userId: string, creditId: string) {
+    await this.getCreditById(userId, creditId);
+
+    const paymentPlans = await this.paymentPlanRepository.find({
+      where: { creditId },
+      order: { installmentNo: 'ASC' },
+    });
+
+    const today = new Date();
+
+    return paymentPlans.map((plan) => {
+      const planDueDate = new Date(plan.dueDate);
+
+      if (
+        plan.status === PaymentPlanStatus.LATE ||
+        (plan.status === PaymentPlanStatus.UNPAID && planDueDate < today)
+      ) {
+        const diffTime = Math.abs(today.getTime() - planDueDate.getTime());
+        const daysLate = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        const lateFeeRate = Number(plan.lateFeeRate) || 0.0015;
+        const installmentAmount = Number(plan.amount);
+
+        const lateFee = Number(
+          (installmentAmount * lateFeeRate * daysLate).toFixed(2),
+        );
+        const totalDue = Number((installmentAmount + lateFee).toFixed(2));
+
+        return {
+          ...plan,
+          status: PaymentPlanStatus.LATE,
+          currentLate: {
+            daysLate,
+            lateFee,
+            totalDue,
+          },
+        };
+      }
+
+      return plan;
     });
   }
 
@@ -132,7 +210,6 @@ export class CreditsService {
     const totalPayable = amount + totalInterest;
     const installmentAmount = Number((totalPayable / termCount).toFixed(2));
 
-    // 👈 'schedule' dizisine explicit tip tanımlaması yapıldı
     const schedule: Array<{
       installmentNo: number;
       dueDate: string;

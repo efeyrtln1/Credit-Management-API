@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, QueryRunner } from 'typeorm';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CreditsService } from './credits.service';
 import { Credit } from './entities/credit.entity';
 import { PaymentPlan } from './entities/payment-plan.entity';
@@ -25,10 +25,12 @@ describe('CreditsService', () => {
         ...dto,
       })),
       find: jest.fn(),
+      findOne: jest.fn(),
     };
 
     paymentPlanRepoMock = {
       create: jest.fn().mockImplementation((dto: Partial<PaymentPlan>) => dto),
+      find: jest.fn(),
     };
 
     queryRunnerMock = {
@@ -94,6 +96,7 @@ describe('CreditsService', () => {
       usersServiceMock.getCreditLimitByUserId.mockResolvedValue({
         availableLimit: 5000,
         usedAmount: 0,
+        scoreGroup: 'A',
       });
 
       const result = await service.applyForCredit('user-1', {
@@ -111,6 +114,62 @@ describe('CreditsService', () => {
       creditRepoMock.find.mockResolvedValue([]);
       const result = await service.getMyCredits('user-1');
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('getCreditById', () => {
+    it('should return credit if found', async () => {
+      const mockCredit = { id: 'credit-1', userId: 'user-1' };
+      creditRepoMock.findOne.mockResolvedValue(mockCredit);
+
+      const result = await service.getCreditById('user-1', 'credit-1');
+      expect(result).toEqual(mockCredit);
+    });
+
+    it('should throw NotFoundException if credit not found', async () => {
+      creditRepoMock.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.getCreditById('user-1', 'credit-99'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getPaymentPlansByCreditId', () => {
+    it('should return payment plans and attach currentLate for late/past-due plans', async () => {
+      const mockCredit = { id: 'credit-1', userId: 'user-1' } as Credit;
+      jest.spyOn(service, 'getCreditById').mockResolvedValue(mockCredit);
+
+      const pastDate = new Date();
+      pastDate.setDate(pastDate.getDate() - 5);
+
+      const mockPlans = [
+        {
+          id: 'plan-1',
+          creditId: 'credit-1',
+          installmentNo: 1,
+          amount: 1000,
+          dueDate: pastDate.toISOString().split('T')[0],
+          status: 'UNPAID',
+          lateFeeRate: 0.0015,
+        },
+      ];
+
+      paymentPlanRepoMock.find.mockResolvedValue(mockPlans);
+
+      const result = await service.getPaymentPlansByCreditId(
+        'user-1',
+        'credit-1',
+      );
+
+      const firstPlan = result[0] as (typeof result)[0] & {
+        currentLate: { daysLate: number; lateFee: number; totalDue: number };
+      };
+
+      expect(result).toHaveLength(1);
+      expect(firstPlan.status).toBe('LATE');
+      expect(firstPlan).toHaveProperty('currentLate');
+      expect(firstPlan.currentLate.daysLate).toBeGreaterThan(0);
     });
   });
 
