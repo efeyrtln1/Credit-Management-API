@@ -2,11 +2,17 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, FindOptionsRelations } from 'typeorm';
 import { Credit, CreditStatus } from './entities/credit.entity';
 import { PaymentPlan, PaymentPlanStatus } from './entities/payment-plan.entity';
+import {
+  Payment,
+  PaymentChannel,
+  PaymentStatus,
+} from './entities/payment.entity';
 import { CreditLimit } from '../users/entities/credit-limit.entity';
 import { UsersService } from '../users/users.service';
 import { ApplyCreditDto } from './dto/apply-credit.dto';
@@ -18,6 +24,8 @@ export class CreditsService {
     private readonly creditRepository: Repository<Credit>,
     @InjectRepository(PaymentPlan)
     private readonly paymentPlanRepository: Repository<PaymentPlan>,
+    @InjectRepository(Payment)
+    private readonly paymentRepository: Repository<Payment>,
     private readonly usersService: UsersService,
     private readonly dataSource: DataSource,
   ) {}
@@ -25,43 +33,49 @@ export class CreditsService {
   async applyForCredit(userId: string, applyCreditDto: ApplyCreditDto) {
     const { amount, termCount } = applyCreditDto;
 
-    // 1. Kullanıcının limit durumunu kontrol et
-    const creditLimit = await this.usersService.getCreditLimitByUserId(userId);
-
-    if (Number(creditLimit.availableLimit) < amount) {
-      throw new BadRequestException(
-        'Kullanılabilir kredi limitiniz bu başvuru için yetersizdir.',
-      );
-    }
-
-    // 2. Score Group konfigürasyon haritası
-    const interestRates: Record<string, number> = {
-      A: 0.015,
-      B: 0.02,
-      C: 0.025,
-      D: 0.03,
-    };
-    const lateFeeRates: Record<string, number> = {
-      A: 0.0005,
-      B: 0.0008,
-      C: 0.001,
-      D: 0.0015,
-    };
-
-    const userGroup = creditLimit.scoreGroup || 'D';
-    const monthlyInterestRate = interestRates[userGroup] ?? 0.03;
-    const dailyLateFeeRate = lateFeeRates[userGroup] ?? 0.0015;
-
-    const totalPayable = amount * (1 + monthlyInterestRate * termCount);
-    const monthlyInstallment = Number((totalPayable / termCount).toFixed(2));
-
     // Transaction başlatıyoruz
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // 3. Kredi Kaydını Oluştur (Faiz Oranı Snapshot Alındı)
+      // 1. Kullanıcının limit durumunu doğrudan QueryRunner üzerinden çek
+      const creditLimit = await queryRunner.manager.findOne(CreditLimit, {
+        where: { userId },
+      });
+
+      if (!creditLimit) {
+        throw new NotFoundException('Kullanıcıya ait kredi limiti bulunamadı.');
+      }
+
+      if (Number(creditLimit.availableLimit) < amount) {
+        throw new BadRequestException(
+          'Kullanılabilir kredi limitiniz bu başvuru için yetersizdir.',
+        );
+      }
+
+      // 2. Score Group konfigürasyon haritası
+      const interestRates: Record<string, number> = {
+        A: 0.015,
+        B: 0.02,
+        C: 0.025,
+        D: 0.03,
+      };
+      const lateFeeRates: Record<string, number> = {
+        A: 0.0005,
+        B: 0.0008,
+        C: 0.001,
+        D: 0.0015,
+      };
+
+      const userGroup = creditLimit.scoreGroup || 'D';
+      const monthlyInterestRate = interestRates[userGroup] ?? 0.03;
+      const dailyLateFeeRate = lateFeeRates[userGroup] ?? 0.0015;
+
+      const totalPayable = amount * (1 + monthlyInterestRate * termCount);
+      const monthlyInstallment = Number((totalPayable / termCount).toFixed(2));
+
+      // 3. Kredi Kaydını Oluştur
       const credit = this.creditRepository.create({
         userId,
         amount,
@@ -73,7 +87,7 @@ export class CreditsService {
 
       const savedCredit = await queryRunner.manager.save(Credit, credit);
 
-      // 4. Taksit Planını Oluştur (Gecikme Oranı Snapshot Alındı)
+      // 4. Taksit Planını Oluştur
       const paymentPlans: PaymentPlan[] = [];
       const now = new Date();
 
@@ -187,6 +201,149 @@ export class CreditsService {
 
       return plan;
     });
+  }
+
+  // POST /credits/payment-plans/:id/pay -> Taksit Ödeme & Limit Restorasyonu
+  async payPaymentPlan(paymentPlanId: string, userId: string) {
+    const relations: FindOptionsRelations<PaymentPlan> = {
+      credit: true,
+    };
+
+    const plan = await this.paymentPlanRepository.findOne({
+      where: { id: paymentPlanId },
+      relations,
+    });
+
+    if (!plan) {
+      throw new NotFoundException('Ödeme planı bulunamadı.');
+    }
+
+    if (plan.credit.userId !== userId) {
+      throw new ForbiddenException('Başkasına ait bir taksiti ödeyemezsiniz.');
+    }
+
+    if (
+      plan.status !== PaymentPlanStatus.UNPAID &&
+      plan.status !== PaymentPlanStatus.LATE
+    ) {
+      throw new BadRequestException({
+        error: 'PAYMENT_PLAN_NOT_PAYABLE',
+        message: 'Ödenmiş veya iptal edilmiş bir taksit tekrar ödenemez.',
+      });
+    }
+
+    // Sıralı ödeme kontrolü: Önceden ödenmesi gereken bir taksit var mı?
+    const previousUnpaidPlan = await this.paymentPlanRepository.findOne({
+      where: [
+        {
+          creditId: plan.creditId,
+          status: PaymentPlanStatus.UNPAID,
+        },
+        {
+          creditId: plan.creditId,
+          status: PaymentPlanStatus.LATE,
+        },
+      ],
+      order: { installmentNo: 'ASC' },
+    });
+
+    if (
+      previousUnpaidPlan &&
+      previousUnpaidPlan.installmentNo < plan.installmentNo
+    ) {
+      throw new BadRequestException({
+        error: 'PRIOR_INSTALLMENT_REQUIRED',
+        message: `Öncelikle ${previousUnpaidPlan.installmentNo}. taksiti ödemelisiniz.`,
+      });
+    }
+
+    let totalToPay = Number(plan.amount);
+    const today = new Date();
+    const dueDate = new Date(plan.dueDate);
+
+    // LATE kontrolü: Eğer taksit LATE durumundaysa veya vadesi geçmişse gecikme faizi hesapla
+    if (plan.status === PaymentPlanStatus.LATE || dueDate < today) {
+      const diffTime = Math.abs(today.getTime() - dueDate.getTime());
+      const daysLate = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const lateFeeRate = Number(plan.lateFeeRate) || 0.0015;
+
+      const lateFee = totalToPay * lateFeeRate * daysLate;
+      totalToPay = Number((totalToPay + lateFee).toFixed(2));
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. Immutable Payment kaydı at (userId EKLENDİ 🎯)
+      const payment = queryRunner.manager.create(Payment, {
+        userId,
+        paymentPlanId: plan.id,
+        amount: totalToPay,
+        channel: PaymentChannel.MANUAL,
+        status: PaymentStatus.SUCCEEDED,
+      });
+      await queryRunner.manager.save(Payment, payment);
+
+      // 2. Taksiti PAID yap ve ödeme tarihini kaydet
+      plan.status = PaymentPlanStatus.PAID;
+      plan.paidAt = new Date();
+      await queryRunner.manager.save(PaymentPlan, plan);
+
+      // 3. Kredinin kalan taksit durumunu kontrol et
+      const remainingUnpaidPlans = await queryRunner.manager.count(
+        PaymentPlan,
+        {
+          where: [
+            { creditId: plan.creditId, status: PaymentPlanStatus.UNPAID },
+            { creditId: plan.creditId, status: PaymentPlanStatus.LATE },
+          ],
+        },
+      );
+
+      let isCreditCompleted = false;
+
+      // Tüm taksitler ödenmişse Kredi COMPLETED yapılır ve harcanan limit iade edilir
+      if (remainingUnpaidPlans === 0) {
+        isCreditCompleted = true;
+
+        await queryRunner.manager.update(Credit, plan.creditId, {
+          status: CreditStatus.COMPLETED,
+        });
+
+        // Limit iadesi doğrudan QueryRunner üzerinden
+        const creditLimit = await queryRunner.manager.findOne(CreditLimit, {
+          where: { userId },
+        });
+
+        if (creditLimit) {
+          const principalAmount = Number(plan.credit.amount);
+          creditLimit.availableLimit =
+            Number(creditLimit.availableLimit) + principalAmount;
+          creditLimit.usedAmount =
+            Number(creditLimit.usedAmount) - principalAmount;
+
+          await queryRunner.manager.save(CreditLimit, creditLimit);
+        }
+      }
+
+      await queryRunner.commitTransaction();
+
+      return {
+        message: 'Taksit ödemesi başarıyla gerçekleştirildi.',
+        paymentId: payment.id,
+        paidAmount: totalToPay,
+        status: plan.status,
+        paidAt: plan.paidAt,
+        isCreditCompleted,
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   calculateRepayment(amount: number, termCount: number, scoreGroup = 'D') {

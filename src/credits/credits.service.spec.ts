@@ -5,20 +5,18 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CreditsService } from './credits.service';
 import { Credit } from './entities/credit.entity';
 import { PaymentPlan } from './entities/payment-plan.entity';
+import { Payment } from './entities/payment.entity';
+import { CreditLimit } from '../users/entities/credit-limit.entity';
 import { UsersService } from '../users/users.service';
 
 describe('CreditsService', () => {
   let service: CreditsService;
-  let usersServiceMock: Record<string, jest.Mock>;
   let creditRepoMock: Record<string, jest.Mock>;
   let paymentPlanRepoMock: Record<string, jest.Mock>;
+  let paymentRepoMock: Record<string, jest.Mock>;
   let queryRunnerMock: Partial<QueryRunner>;
 
   beforeEach(async () => {
-    usersServiceMock = {
-      getCreditLimitByUserId: jest.fn(),
-    };
-
     creditRepoMock = {
       create: jest.fn().mockImplementation((dto: Partial<Credit>) => ({
         id: 'credit-1',
@@ -31,6 +29,15 @@ describe('CreditsService', () => {
     paymentPlanRepoMock = {
       create: jest.fn().mockImplementation((dto: Partial<PaymentPlan>) => dto),
       find: jest.fn(),
+      findOne: jest.fn(),
+    };
+
+    paymentRepoMock = {
+      create: jest.fn().mockImplementation((dto: Partial<Payment>) => ({
+        id: 'payment-1',
+        ...dto,
+      })),
+      save: jest.fn(),
     };
 
     queryRunnerMock = {
@@ -40,11 +47,17 @@ describe('CreditsService', () => {
       rollbackTransaction: jest.fn().mockResolvedValue(undefined),
       release: jest.fn().mockResolvedValue(undefined),
       manager: {
+        findOne: jest.fn(),
         save: jest
           .fn()
           .mockImplementation((_entityOrClass: unknown, entity?: unknown) => {
             return Promise.resolve(entity ?? _entityOrClass);
           }),
+        create: jest
+          .fn()
+          .mockImplementation((_entityClass: unknown, dto: unknown) => dto),
+        count: jest.fn().mockResolvedValue(1),
+        update: jest.fn().mockResolvedValue({ affected: 1 }),
       } as unknown as QueryRunner['manager'],
     };
 
@@ -64,8 +77,12 @@ describe('CreditsService', () => {
           useValue: paymentPlanRepoMock,
         },
         {
+          provide: getRepositoryToken(Payment),
+          useValue: paymentRepoMock,
+        },
+        {
           provide: UsersService,
-          useValue: usersServiceMock,
+          useValue: {},
         },
         {
           provide: DataSource,
@@ -83,8 +100,11 @@ describe('CreditsService', () => {
 
   describe('applyForCredit', () => {
     it('should throw BadRequestException if available limit is insufficient', async () => {
-      usersServiceMock.getCreditLimitByUserId.mockResolvedValue({
+      (queryRunnerMock.manager?.findOne as jest.Mock).mockResolvedValue({
+        userId: 'user-1',
         availableLimit: 1000,
+        usedAmount: 0,
+        scoreGroup: 'A',
       });
 
       await expect(
@@ -93,7 +113,8 @@ describe('CreditsService', () => {
     });
 
     it('should approve credit and generate payment plans if limit is sufficient', async () => {
-      usersServiceMock.getCreditLimitByUserId.mockResolvedValue({
+      (queryRunnerMock.manager?.findOne as jest.Mock).mockResolvedValue({
+        userId: 'user-1',
         availableLimit: 5000,
         usedAmount: 0,
         scoreGroup: 'A',
@@ -105,6 +126,29 @@ describe('CreditsService', () => {
       });
 
       expect(result.message).toContain('başarıyla onaylandı');
+      expect(queryRunnerMock.commitTransaction).toHaveBeenCalled();
+    });
+  });
+
+  describe('payPaymentPlan', () => {
+    it('should process payment successfully for valid installment', async () => {
+      const mockPlan = {
+        id: 'plan-1',
+        creditId: 'credit-1',
+        installmentNo: 1,
+        amount: 500,
+        dueDate: '2026-12-31',
+        status: 'UNPAID',
+        credit: { userId: 'user-1', amount: 3000 },
+      };
+
+      paymentPlanRepoMock.findOne
+        .mockResolvedValueOnce(mockPlan) // Taksitin kendisi
+        .mockResolvedValueOnce(null); // Öncesinde ödenmemiş taksit yok
+
+      const result = await service.payPaymentPlan('plan-1', 'user-1');
+
+      expect(result.message).toContain('başarıyla gerçekleştirildi');
       expect(queryRunnerMock.commitTransaction).toHaveBeenCalled();
     });
   });

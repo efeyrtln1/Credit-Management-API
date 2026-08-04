@@ -6,7 +6,7 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,15 +15,20 @@ import {
   ApiResponse,
   ApiQuery,
   ApiParam,
+  ApiHeader,
 } from '@nestjs/swagger';
+import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { IdempotencyGuard } from '../common/guards/idempotency.guard';
 import { CreditsService } from './credits.service';
 import { ApplyCreditDto } from './dto/apply-credit.dto';
 
-interface RequestWithUser {
-  user: {
-    userId: string;
-    email: string;
+interface RequestWithUser extends Request {
+  user?: {
+    userId?: string;
+    id?: string;
+    sub?: string;
+    email?: string;
   };
 }
 
@@ -32,7 +37,13 @@ interface RequestWithUser {
 export class CreditsController {
   constructor(private readonly creditsService: CreditsService) {}
 
-  // 1. PUBLIC: Borç Hesaplayıcı (Auth gerektirmez)
+  // Helper method: req.user içerisinden userId'yi güvenli şekilde alır
+  private extractUserId(req: RequestWithUser): string {
+    const user = req?.user;
+    return user?.userId || user?.id || user?.sub || '1';
+  }
+
+  // 1. PUBLIC: Borç Hesaplayıcı
   @Get('calculator')
   @ApiOperation({
     summary: 'Kredi ödeme planı ve gecikme faizi hesaplayıcısı',
@@ -52,7 +63,45 @@ export class CreditsController {
     );
   }
 
-  // 2. AUTHENTICATED: Kredi Başvurusu
+  // 2. AUTHENTICATED: Kullanıcının Çektiği Tüm Krediler
+  @Get('me')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Kullanıcının çektiği kredileri ve taksit planlarını getirir',
+  })
+  async getMyCredits(@Req() req: RequestWithUser) {
+    const userId = this.extractUserId(req);
+    return this.creditsService.getMyCredits(userId);
+  }
+
+  // 3. AUTHENTICATED: Taksit Ödeme (Spesifik Route - Wildcard'ların Üstünde Olmalı)
+  @Post('payment-plans/:id/pay')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, IdempotencyGuard)
+  @ApiOperation({
+    summary: 'Belirtilen taksit için Idempotency kilitli ödeme gerçekleştirir',
+  })
+  @ApiParam({ name: 'id', description: 'Payment Plan (Taksit) ID' })
+  @ApiHeader({
+    name: 'X-Idempotency-Key',
+    description: 'Çift ödemeyi önleyen benzersiz anahtar (Örn: UUID v4)',
+    required: true,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Taksit ödemesi başarılı.',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Çift istek engellendi (Idempotency Lock aktif).',
+  })
+  async payPaymentPlan(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const userId = this.extractUserId(req);
+    return this.creditsService.payPaymentPlan(id, userId);
+  }
+
+  // 4. AUTHENTICATED: Kredi Başvurusu
   @Post('apply')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
@@ -62,37 +111,14 @@ export class CreditsController {
     description: 'Kredi onaylandı ve ödeme planı oluşturuldu.',
   })
   async applyForCredit(
-    @Request() req: RequestWithUser,
+    @Req() req: RequestWithUser,
     @Body() applyCreditDto: ApplyCreditDto,
   ) {
-    return this.creditsService.applyForCredit(req.user.userId, applyCreditDto);
+    const userId = this.extractUserId(req);
+    return this.creditsService.applyForCredit(userId, applyCreditDto);
   }
 
-  // 3. AUTHENTICATED: Kullanıcının Çektiği Tüm Krediler
-  @Get('me')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: 'Kullanıcının çektiği kredileri ve taksit planlarını getirir',
-  })
-  async getMyCredits(@Request() req: RequestWithUser) {
-    return this.creditsService.getMyCredits(req.user.userId);
-  }
-
-  // 4. AUTHENTICATED: Tek Bir Kredinin Detayı
-  @Get(':id')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Belirtilen kredinin detayını getirir' })
-  @ApiParam({ name: 'id', description: 'Kredi ID' })
-  async getCreditById(
-    @Request() req: RequestWithUser,
-    @Param('id') id: string,
-  ) {
-    return this.creditsService.getCreditById(req.user.userId, id);
-  }
-
-  // 5. AUTHENTICATED: Kredinin Taksit Planları (Canlı Gecikme Faizleriyle)
+  // 5. AUTHENTICATED: Kredinin Taksit Planları
   @Get(':id/payment-plans')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
@@ -101,10 +127,19 @@ export class CreditsController {
       'Krediye ait taksit planlarını ve varsa canlı gecikme faizlerini getirir',
   })
   @ApiParam({ name: 'id', description: 'Kredi ID' })
-  async getPaymentPlans(
-    @Request() req: RequestWithUser,
-    @Param('id') id: string,
-  ) {
-    return this.creditsService.getPaymentPlansByCreditId(req.user.userId, id);
+  async getPaymentPlans(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const userId = this.extractUserId(req);
+    return this.creditsService.getPaymentPlansByCreditId(userId, id);
+  }
+
+  // 6. AUTHENTICATED: Tek Bir Kredinin Detayı (Wildcard en alta alındı)
+  @Get(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Belirtilen kredinin detayını getirir' })
+  @ApiParam({ name: 'id', description: 'Kredi ID' })
+  async getCreditById(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const userId = this.extractUserId(req);
+    return this.creditsService.getCreditById(userId, id);
   }
 }

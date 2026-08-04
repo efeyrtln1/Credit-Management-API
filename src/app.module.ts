@@ -5,11 +5,14 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { CreditsModule } from './credits/credits.module';
+import { RedisModule } from './common/redis/redis.module';
+
 import { User } from './users/entities/user.entity';
 import { CreditLimit } from './users/entities/credit-limit.entity';
 import { Credit } from './credits/entities/credit.entity';
 import { PaymentPlan } from './credits/entities/payment-plan.entity';
-import { Payment } from './payments/entities/payment.entity';
+import { Payment } from './credits/entities/payment.entity'; // 👈 DOĞRU KLASÖR DÜZELTİLDİ
 import { Notification } from './notifications/entities/notification.entity';
 
 @Module({
@@ -19,14 +22,14 @@ import { Notification } from './notifications/entities/notification.entity';
       isGlobal: true,
     }),
 
-    // Madde 12: Rate Limiting
+    // Rate Limiting
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: () => [
         {
-          ttl: 60000, // 1 dakika (milisaniye)
-          limit: 60, // Maksimum 60 istek
+          ttl: 60000,
+          limit: 60,
         },
       ],
     }),
@@ -55,8 +58,10 @@ import { Notification } from './notifications/entities/notification.entity';
     }),
 
     // Proje Modülleri
+    RedisModule,
     AuthModule,
     UsersModule,
+    CreditsModule,
   ],
   providers: [],
 })

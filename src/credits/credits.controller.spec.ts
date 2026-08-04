@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CreditsController } from './credits.controller';
 import { CreditsService } from './credits.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { IdempotencyGuard } from '../common/guards/idempotency.guard';
 
 describe('CreditsController', () => {
   let controller: CreditsController;
@@ -8,18 +10,21 @@ describe('CreditsController', () => {
 
   const mockUserRequest = {
     user: {
+      id: '1',
       userId: '1',
+      sub: '1',
       email: 'test@example.com',
     },
   };
 
   beforeEach(async () => {
     serviceMock = {
-      applyForCredit: jest.fn(),
-      getMyCredits: jest.fn(),
-      getCreditById: jest.fn(),
-      getPaymentPlansByCreditId: jest.fn(),
-      calculateRepayment: jest.fn(),
+      applyForCredit: jest.fn().mockResolvedValue({}),
+      getMyCredits: jest.fn().mockResolvedValue([]),
+      getCreditById: jest.fn().mockResolvedValue({}),
+      getPaymentPlansByCreditId: jest.fn().mockResolvedValue([]),
+      calculateRepayment: jest.fn().mockReturnValue({}),
+      payPaymentPlan: jest.fn().mockResolvedValue({ message: 'Success' }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -30,7 +35,12 @@ describe('CreditsController', () => {
           useValue: serviceMock,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(IdempotencyGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<CreditsController>(CreditsController);
   });
@@ -50,8 +60,7 @@ describe('CreditsController', () => {
   });
 
   it('should call applyForCredit', async () => {
-    serviceMock.applyForCredit.mockResolvedValue({});
-    await controller.applyForCredit(mockUserRequest, {
+    await controller.applyForCredit(mockUserRequest as any, {
       amount: 1000,
       termCount: 6,
     });
@@ -62,23 +71,25 @@ describe('CreditsController', () => {
   });
 
   it('should call getMyCredits', async () => {
-    serviceMock.getMyCredits.mockResolvedValue([]);
-    await controller.getMyCredits(mockUserRequest);
+    await controller.getMyCredits(mockUserRequest as any);
     expect(serviceMock.getMyCredits).toHaveBeenCalledWith('1');
   });
 
   it('should call getCreditById', async () => {
-    serviceMock.getCreditById.mockResolvedValue({});
-    await controller.getCreditById(mockUserRequest, 'credit-1');
+    await controller.getCreditById(mockUserRequest as any, 'credit-1');
     expect(serviceMock.getCreditById).toHaveBeenCalledWith('1', 'credit-1');
   });
 
   it('should call getPaymentPlans', async () => {
-    serviceMock.getPaymentPlansByCreditId.mockResolvedValue([]);
-    await controller.getPaymentPlans(mockUserRequest, 'credit-1');
+    await controller.getPaymentPlans(mockUserRequest as any, 'credit-1');
     expect(serviceMock.getPaymentPlansByCreditId).toHaveBeenCalledWith(
       '1',
       'credit-1',
     );
+  });
+
+  it('should call payPaymentPlan', async () => {
+    await controller.payPaymentPlan(mockUserRequest as any, 'plan-1');
+    expect(serviceMock.payPaymentPlan).toHaveBeenCalledWith('plan-1', '1');
   });
 });

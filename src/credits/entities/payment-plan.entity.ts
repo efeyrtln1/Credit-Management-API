@@ -7,7 +7,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Credit } from './credit.entity';
-import { Payment } from '../../payments/entities/payment.entity';
+import { Payment } from './payment.entity';
 
 export enum PaymentPlanStatus {
   UNPAID = 'UNPAID',
