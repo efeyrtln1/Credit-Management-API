@@ -6,8 +6,9 @@ import { CreditsService } from './credits.service';
 import { Credit } from './entities/credit.entity';
 import { PaymentPlan } from './entities/payment-plan.entity';
 import { Payment } from './entities/payment.entity';
-import { CreditLimit } from '../users/entities/credit-limit.entity';
 import { UsersService } from '../users/users.service';
+
+const REDIS_CLIENT = 'REDIS_CLIENT';
 
 describe('CreditsService', () => {
   let service: CreditsService;
@@ -65,6 +66,12 @@ describe('CreditsService', () => {
       createQueryRunner: jest.fn().mockReturnValue(queryRunnerMock),
     };
 
+    const redisMock = {
+      set: jest.fn(),
+      get: jest.fn(),
+      del: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CreditsService,
@@ -87,6 +94,10 @@ describe('CreditsService', () => {
         {
           provide: DataSource,
           useValue: dataSourceMock,
+        },
+        {
+          provide: REDIS_CLIENT,
+          useValue: redisMock,
         },
       ],
     }).compile();
@@ -143,8 +154,8 @@ describe('CreditsService', () => {
       };
 
       paymentPlanRepoMock.findOne
-        .mockResolvedValueOnce(mockPlan) // Taksitin kendisi
-        .mockResolvedValueOnce(null); // Öncesinde ödenmemiş taksit yok
+        .mockResolvedValueOnce(mockPlan)
+        .mockResolvedValueOnce(null);
 
       const result = await service.payPaymentPlan('plan-1', 'user-1');
 

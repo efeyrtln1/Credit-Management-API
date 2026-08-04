@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { IdempotencyGuard } from './idempotency.guard';
 import { REDIS_CLIENT } from '../redis/redis.module';
-import { BadRequestException, ConflictException, ExecutionContext } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ExecutionContext,
+} from '@nestjs/common';
 
 describe('IdempotencyGuard', () => {
   let guard: IdempotencyGuard;
@@ -20,16 +24,20 @@ describe('IdempotencyGuard', () => {
     guard = module.get<IdempotencyGuard>(IdempotencyGuard);
   });
 
-  const createMockContext = (headers: Record<string, any>): ExecutionContext =>
+  const createMockContext = (
+    headers: Record<string, unknown>,
+  ): ExecutionContext =>
     ({
       switchToHttp: () => ({
         getRequest: () => ({ headers }),
       }),
-    } as any);
+    }) as unknown as ExecutionContext;
 
   it('X-Idempotency-Key eksikse BadRequestException fırlatmalı', async () => {
     const context = createMockContext({});
-    await expect(guard.canActivate(context)).rejects.toThrow(BadRequestException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('Kilit başarıyla alınırsa true dönmeli', async () => {

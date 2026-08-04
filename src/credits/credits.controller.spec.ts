@@ -1,8 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Request } from 'express';
 import { CreditsController } from './credits.controller';
 import { CreditsService } from './credits.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { IdempotencyGuard } from '../common/guards/idempotency.guard';
+
+interface RequestWithUser extends Request {
+  user?: {
+    userId?: string;
+    id?: string;
+    sub?: string;
+    email?: string;
+  };
+}
 
 describe('CreditsController', () => {
   let controller: CreditsController;
@@ -15,7 +25,7 @@ describe('CreditsController', () => {
       sub: '1',
       email: 'test@example.com',
     },
-  };
+  } as unknown as RequestWithUser;
 
   beforeEach(async () => {
     serviceMock = {
@@ -60,7 +70,7 @@ describe('CreditsController', () => {
   });
 
   it('should call applyForCredit', async () => {
-    await controller.applyForCredit(mockUserRequest as any, {
+    await controller.applyForCredit(mockUserRequest, {
       amount: 1000,
       termCount: 6,
     });
@@ -71,17 +81,17 @@ describe('CreditsController', () => {
   });
 
   it('should call getMyCredits', async () => {
-    await controller.getMyCredits(mockUserRequest as any);
+    await controller.getMyCredits(mockUserRequest);
     expect(serviceMock.getMyCredits).toHaveBeenCalledWith('1');
   });
 
   it('should call getCreditById', async () => {
-    await controller.getCreditById(mockUserRequest as any, 'credit-1');
+    await controller.getCreditById(mockUserRequest, 'credit-1');
     expect(serviceMock.getCreditById).toHaveBeenCalledWith('1', 'credit-1');
   });
 
   it('should call getPaymentPlans', async () => {
-    await controller.getPaymentPlans(mockUserRequest as any, 'credit-1');
+    await controller.getPaymentPlans(mockUserRequest, 'credit-1');
     expect(serviceMock.getPaymentPlansByCreditId).toHaveBeenCalledWith(
       '1',
       'credit-1',
@@ -89,7 +99,7 @@ describe('CreditsController', () => {
   });
 
   it('should call payPaymentPlan', async () => {
-    await controller.payPaymentPlan(mockUserRequest as any, 'plan-1');
+    await controller.payPaymentPlan(mockUserRequest, 'plan-1');
     expect(serviceMock.payPaymentPlan).toHaveBeenCalledWith('plan-1', '1');
   });
 });
