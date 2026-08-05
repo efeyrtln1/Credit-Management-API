@@ -9,10 +9,12 @@ describe('NotificationsService', () => {
 
   beforeEach(async () => {
     repoMock = {
-      create: jest.fn().mockImplementation((dto) => dto),
-      save: jest.fn().mockImplementation((entity) =>
-        Promise.resolve({ id: 'notif-1', ...entity, sentAt: new Date() }),
-      ),
+      create: jest.fn().mockImplementation((dto: Partial<Notification>) => dto),
+      save: jest
+        .fn()
+        .mockImplementation((entity: Partial<Notification>) =>
+          Promise.resolve({ id: 'notif-1', ...entity, sentAt: new Date() }),
+        ),
       find: jest.fn().mockResolvedValue([]),
     };
 

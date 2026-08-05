@@ -29,8 +29,8 @@ describe('NotificationsController', () => {
   });
 
   it('should get user notifications', async () => {
-    const req = { user: { id: 'user-1' } } as any;
-    const result = await controller.getNotifications(req);
+    const mockRequest = { user: { id: 'user-1' } };
+    const result = await controller.getNotifications(mockRequest as never);
 
     expect(serviceMock.getUserNotifications).toHaveBeenCalledWith('user-1');
     expect(result).toEqual([]);
