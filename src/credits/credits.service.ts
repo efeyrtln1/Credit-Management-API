@@ -16,6 +16,8 @@ import {
 import { CreditLimit } from '../users/entities/credit-limit.entity';
 import { UsersService } from '../users/users.service';
 import { ApplyCreditDto } from './dto/apply-credit.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/entities/notification.entity';
 
 @Injectable()
 export class CreditsService {
@@ -28,6 +30,7 @@ export class CreditsService {
     private readonly paymentRepository: Repository<Payment>,
     private readonly usersService: UsersService,
     private readonly dataSource: DataSource,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async applyForCredit(userId: string, applyCreditDto: ApplyCreditDto) {
@@ -116,6 +119,17 @@ export class CreditsService {
       await queryRunner.manager.save(CreditLimit, creditLimit);
 
       await queryRunner.commitTransaction();
+
+      // Notification log kaydı atalım
+      await this.notificationsService.createNotification(
+        userId,
+        NotificationType.CREDIT_APPROVED,
+        {
+          creditId: savedCredit.id,
+          amount,
+          totalPayable: Number(totalPayable.toFixed(2)),
+        },
+      );
 
       return {
         message:
@@ -276,7 +290,7 @@ export class CreditsService {
     await queryRunner.startTransaction();
 
     try {
-      // 1. Immutable Payment kaydı at (userId EKLENDİ 🎯)
+      // 1. Immutable Payment kaydı at
       const payment = queryRunner.manager.create(Payment, {
         userId,
         paymentPlanId: plan.id,
@@ -329,6 +343,18 @@ export class CreditsService {
       }
 
       await queryRunner.commitTransaction();
+
+      // Ödeme Başarı Bildirimi
+      await this.notificationsService.createNotification(
+        userId,
+        NotificationType.PAYMENT_SUCCESS,
+        {
+          creditId: plan.creditId,
+          paymentPlanId: plan.id,
+          paidAmount: totalToPay,
+          installmentNo: plan.installmentNo,
+        },
+      );
 
       return {
         message: 'Taksit ödemesi başarıyla gerçekleştirildi.',

@@ -6,6 +6,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CreditsModule } from './credits/credits.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { RedisModule } from './common/redis/redis.module';
 
 import { User } from './users/entities/user.entity';
@@ -62,6 +63,7 @@ import { Notification } from './notifications/entities/notification.entity';
     AuthModule,
     UsersModule,
     CreditsModule,
+    NotificationsModule,
   ],
   providers: [],
 })

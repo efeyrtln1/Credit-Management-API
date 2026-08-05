@@ -7,6 +7,7 @@ import { Credit } from './entities/credit.entity';
 import { PaymentPlan } from './entities/payment-plan.entity';
 import { Payment } from './entities/payment.entity';
 import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const REDIS_CLIENT = 'REDIS_CLIENT';
 
@@ -72,6 +73,11 @@ describe('CreditsService', () => {
       del: jest.fn(),
     };
 
+    const notificationsServiceMock = {
+      createNotification: jest.fn().mockResolvedValue({ id: 'notif-1' }),
+      getUserNotifications: jest.fn().mockResolvedValue([]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CreditsService,
@@ -98,6 +104,10 @@ describe('CreditsService', () => {
         {
           provide: REDIS_CLIENT,
           useValue: redisMock,
+        },
+        {
+          provide: NotificationsService,
+          useValue: notificationsServiceMock,
         },
       ],
     }).compile();
