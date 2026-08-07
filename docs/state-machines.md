@@ -1,3 +1,4 @@
+```mermaid
 stateDiagram-v2
     [*] --> ACTIVE : Kredi Başvurusu Onaylandı
     
@@ -11,8 +12,10 @@ stateDiagram-v2
         COMPLETED durumunda harcanan limit
         availableLimit hesabına iade edilir.
     endnote
+```
 
-    stateDiagram-v2
+```mermaid
+stateDiagram-v2
     [*] --> UNPAID : Kredi Oluşturuldu
     
     UNPAID --> PAID : Vadesinde Ödendi
@@ -25,3 +28,4 @@ stateDiagram-v2
         LATE statüsü sadece Cron Job 
         tarafından atanır.
     endnote
+```

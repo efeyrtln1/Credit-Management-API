@@ -1,3 +1,4 @@
+```mermaid
 sequenceDiagram
     autonumber
     actor Client as Kullanıcı
@@ -41,3 +42,4 @@ sequenceDiagram
     API->>Notif: INSERT Notification (PAYMENT_SUCCESS)
     API->>Cache: DEL payment_lock:{id}
     API-->>Client: 200 OK
+```
