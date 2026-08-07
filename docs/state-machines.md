@@ -1,24 +1,27 @@
 stateDiagram-v2
-    direction TB
+    [*] --> ACTIVE : Kredi Başvurusu Onaylandı
     
-    [*] --> Credit_ACTIVE: Kredi Başvurusu Onaylandı
-    state "Credit Lifecycle" as Credit {
-        Credit_ACTIVE --> Credit_COMPLETED: Tüm Taksitler PAID Oldu
-        Credit_ACTIVE --> Credit_CANCELLED: İptal Edildi
-    }
-    Credit_COMPLETED --> [*]
-    Credit_CANCELLED --> [*]
+    ACTIVE --> COMPLETED : Tüm Taksitler Ödendi
+    ACTIVE --> CANCELLED : İptal Edildi
+    
+    COMPLETED --> [*]
+    CANCELLED --> [*]
 
-    note right of Credit_COMPLETED
-        Limit, sadece Credit COMPLETED
-        durumuna geçtiğinde restore edilir.
+    note right of COMPLETED
+        COMPLETED durumunda harcanan limit
+        availableLimit hesabına iade edilir.
     endnote
 
-    %% PaymentPlan State Machine
-    [*] --> Plan_UNPAID: Kredi Tanımlandı
-    state "PaymentPlan Lifecycle" as PaymentPlan {
-        Plan_UNPAID --> Plan_PAID: Zamanında Ödendi
-        Plan_UNPAID --> Plan_LATE: Vade Tarihi Geçti (Cron Job)
-        Plan_LATE --> Plan_PAID: Gecikme Zamlı Ödendi
-    }
-    Plan_PAID --> [*]
+    stateDiagram-v2
+    [*] --> UNPAID : Kredi Oluşturuldu
+    
+    UNPAID --> PAID : Vadesinde Ödendi
+    UNPAID --> LATE : Vade Tarihi Geçti (Daily Cron)
+    LATE --> PAID : Gecikme Zamlı Ödendi
+    
+    PAID --> [*]
+
+    note right of LATE
+        LATE statüsü sadece Cron Job 
+        tarafından atanır.
+    endnote

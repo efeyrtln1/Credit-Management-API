@@ -5,7 +5,7 @@ import { User } from './users/entities/user.entity';
 import { CreditLimit } from './users/entities/credit-limit.entity';
 import { Credit } from './credits/entities/credit.entity';
 import { PaymentPlan } from './credits/entities/payment-plan.entity';
-import { Payment } from './payments/entities/payment.entity';
+import { Payment } from './credits/entities/payment.entity';
 import { Notification } from './notifications/entities/notification.entity';
 
 dotenv.config();
