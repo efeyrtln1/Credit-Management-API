@@ -1,25 +1,25 @@
 ```mermaid
 stateDiagram-v2
-    [*] --> ACTIVE : Kredi Başvurusu Onaylandı
+    [*] --> ACTIVE : Credit Application Approved
     
-    ACTIVE --> COMPLETED : Tüm Taksitler Ödendi
-    ACTIVE --> CANCELLED : İptal Edildi
+    ACTIVE --> COMPLETED : All Installments Paid
+    ACTIVE --> CANCELLED : Cancelled
     
     COMPLETED --> [*]
     CANCELLED --> [*]
 
-    note right of COMPLETED : "COMPLETED durumunda harcanan limit availableLimit hesabına iade edilir."
+    note right of COMPLETED : "In COMPLETED status, used amount is restored to availableLimit."
 ```
 
 ```mermaid
 stateDiagram-v2
-    [*] --> UNPAID : Kredi Oluşturuldu
+    [*] --> UNPAID : Credit Created
     
-    UNPAID --> PAID : Vadesinde Ödendi
-    UNPAID --> LATE : Vade Tarihi Geçti (Daily Cron)
-    LATE --> PAID : Gecikme Zamlı Ödendi
+    UNPAID --> PAID : Paid On Time
+    UNPAID --> LATE : Due Date Passed (Daily Cron)
+    LATE --> PAID : Paid With Late Fee
     
     PAID --> [*]
 
-    note right of LATE : "LATE statüsü sadece Cron Job tarafından atanır."
+    note right of LATE : "LATE status is assigned only by the Cron Job."
 ```
