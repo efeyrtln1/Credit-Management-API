@@ -8,10 +8,7 @@ stateDiagram-v2
     COMPLETED --> [*]
     CANCELLED --> [*]
 
-    note right of COMPLETED
-COMPLETED durumunda harcanan limit
-availableLimit hesabına iade edilir.
-    endnote
+    note right of COMPLETED : "COMPLETED durumunda harcanan limit availableLimit hesabına iade edilir."
 ```
 
 ```mermaid
@@ -24,8 +21,5 @@ stateDiagram-v2
     
     PAID --> [*]
 
-    note right of LATE
-LATE statüsü sadece Cron Job 
-tarafından atanır.
-    endnote
+    note right of LATE : "LATE statüsü sadece Cron Job tarafından atanır."
 ```
