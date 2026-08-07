@@ -9,8 +9,8 @@ stateDiagram-v2
     CANCELLED --> [*]
 
     note right of COMPLETED
-        COMPLETED durumunda harcanan limit
-        availableLimit hesabına iade edilir.
+COMPLETED durumunda harcanan limit
+availableLimit hesabına iade edilir.
     endnote
 ```
 
@@ -25,7 +25,7 @@ stateDiagram-v2
     PAID --> [*]
 
     note right of LATE
-        LATE statüsü sadece Cron Job 
-        tarafından atanır.
+LATE statüsü sadece Cron Job 
+tarafından atanır.
     endnote
 ```
