@@ -74,7 +74,7 @@ export class InitialMigration1784878122091 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE "payment_plans"`);
     await queryRunner.query(`DROP TYPE "public"."payment_plans_status_enum"`);
     await queryRunner.query(`DROP TABLE "payments"`);
-    await queryRunner.query(`DROP TYPE "public"."payments_type_enum"`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."payments_type_enum"`);
     await queryRunner.query(`DROP TABLE "users"`);
     await queryRunner.query(`DROP TYPE "public"."users_status_enum"`);
     await queryRunner.query(`DROP TABLE "credit_limits"`);

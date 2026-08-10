@@ -2,18 +2,20 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CreditsModule } from './credits/credits.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { TasksModule } from './tasks/tasks.module';
 import { RedisModule } from './common/redis/redis.module';
 
 import { User } from './users/entities/user.entity';
 import { CreditLimit } from './users/entities/credit-limit.entity';
 import { Credit } from './credits/entities/credit.entity';
 import { PaymentPlan } from './credits/entities/payment-plan.entity';
-import { Payment } from './credits/entities/payment.entity'; // 👈 DOĞRU KLASÖR DÜZELTİLDİ
+import { Payment } from './credits/entities/payment.entity';
 import { Notification } from './notifications/entities/notification.entity';
 
 @Module({
@@ -22,6 +24,9 @@ import { Notification } from './notifications/entities/notification.entity';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+
+    // Schedule (Cron Jobs) Kurulumu
+    ScheduleModule.forRoot(),
 
     // Rate Limiting
     ThrottlerModule.forRootAsync({
@@ -64,6 +69,7 @@ import { Notification } from './notifications/entities/notification.entity';
     UsersModule,
     CreditsModule,
     NotificationsModule,
+    TasksModule, // 👈 Buraya eklendi
   ],
   providers: [],
 })
