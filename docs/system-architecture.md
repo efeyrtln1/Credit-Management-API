@@ -1,6 +1,7 @@
+```mermaid
 graph TD
     Client[Client / Postman / Web App] -->|HTTPS / REST API| API[NestJS API Gateway]
-    
+
     subgraph Core System
         API --> AuthGuard[JWT & Throttler Guards]
         AuthGuard --> Controllers[Controllers & Business Logic]
@@ -14,9 +15,10 @@ graph TD
     subgraph Data & Storage Layer
         Services -->|TypeORM ORM| PrimaryStore[(Primary Store: PostgreSQL)]
         TasksService -->|Queries & Status Updates| PrimaryStore
-        
+
         Services -->|Distributed Lock & Calculator Cache| RedisCache[(Cache Layer: Redis)]
-        
+
         Services -->|Append-Only Events| NotificationStore[(Notification Store)]
         TasksService -->|Cron Event Notifications| NotificationStore
     end
+```
