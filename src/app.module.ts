@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { Reflector } from '@nestjs/core';
 
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -69,8 +70,8 @@ import { Notification } from './notifications/entities/notification.entity';
     UsersModule,
     CreditsModule,
     NotificationsModule,
-    TasksModule, // 👈 Buraya eklendi
+    TasksModule,
   ],
-  providers: [],
+  providers: [Reflector],
 })
 export class AppModule {}
