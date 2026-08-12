@@ -1,3 +1,4 @@
+```mermaid
 sequenceDiagram
     autonumber
     participant Scheduler as Cron Scheduler (09:00)
@@ -18,3 +19,4 @@ sequenceDiagram
         NotifStore-->>NotifService: Saved
     end
     Tasks-->>Scheduler: Job Complete
+```
