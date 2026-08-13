@@ -1,4 +1,3 @@
-```mermaid
 # Credit Management API - API Documentation
 
 Bu doküman, sistemde yer alan tüm REST API endpoint'lerinin istek/yanıt şemalarını ve hata durumlarını içerir[cite: 1].
