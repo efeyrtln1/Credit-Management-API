@@ -52,9 +52,11 @@ docker compose up -d
 ```
 
 ### 3. Environment Variables (`.env`)
-Create a `.env` file in the root directory and define the configuration[cite: 1]:
+Create a `.env` file in the root directory based on `.env.example`[cite: 1]:
 ```env
+NODE_ENV=development
 PORT=3000
+
 DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
@@ -64,14 +66,24 @@ DB_DATABASE=credit_db
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
-JWT_SECRET=your_super_secret_jwt_key
+JWT_SECRET=your_super_secret_jwt_key_here
 JWT_EXPIRES_IN=1d
 
-REMINDER_DAYS_BEFORE_DUE=3
+CREDIT_LIMIT_EXPIRY_MONTHS=6
+SCORE_GROUP_LIMIT_A=50000
+SCORE_GROUP_LIMIT_B=30000
+SCORE_GROUP_LIMIT_C=15000
+SCORE_GROUP_LIMIT_D=5000
+
 MAX_ACTIVE_CREDITS=3
 MIN_CREDIT_AMOUNT=100
 MAX_TERM_COUNT=12
 INSTALLMENT_INTERVAL_DAYS=30
+REMINDER_DAYS_BEFORE_DUE=3
+
+SNOOZE_FEE_RATE=0.05
+MAX_SNOOZE_COUNT=2
+SNOOZE_EXTENSION_DAYS=30
 ```
 
 ### 4. Application Setup & Migration
