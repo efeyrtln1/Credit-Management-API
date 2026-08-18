@@ -9,8 +9,13 @@ export class TasksController {
 
   @Post('trigger-late-check')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Gecikme kontrolü cron işini manuel tetikler (00:01 Job)' })
-  @ApiResponse({ status: 200, description: 'Late check cron başarıyla çalıştırıldı.' })
+  @ApiOperation({
+    summary: 'Gecikme kontrolü cron işini manuel tetikler (00:01 Job)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Late check cron başarıyla çalıştırıldı.',
+  })
   async triggerLateCheck() {
     await this.tasksService.handleLateCheck();
     return { message: 'Late-check job executed successfully' };
@@ -18,8 +23,13 @@ export class TasksController {
 
   @Post('trigger-reminders')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Hatırlatma bildirimleri cron işini manuel tetikler (09:00 Job)' })
-  @ApiResponse({ status: 200, description: 'Reminder cron başarıyla çalıştırıldı.' })
+  @ApiOperation({
+    summary: 'Hatırlatma bildirimleri cron işini manuel tetikler (09:00 Job)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Reminder cron başarıyla çalıştırıldı.',
+  })
   async triggerReminders() {
     await this.tasksService.handleReminders();
     return { message: 'Reminder job executed successfully' };

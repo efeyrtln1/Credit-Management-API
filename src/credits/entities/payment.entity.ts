@@ -18,13 +18,18 @@ export enum PaymentStatus {
   FAILED = 'FAILED',
 }
 
+export enum PaymentType {
+  FULL = 'FULL',
+  SNOOZE = 'SNOOZE',
+}
+
 @Entity('payments')
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Column()
-  userId!: string; // 👈 EKLENDİ (CreditsService içerisindeki kayıt için gerekli)
+  userId!: string;
 
   @Column()
   paymentPlanId!: string;
@@ -35,7 +40,7 @@ export class Payment {
   @JoinColumn({ name: 'paymentPlanId' })
   paymentPlan!: PaymentPlan;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column('decimal', { precision: 12, scale: 2 })
   amount!: number;
 
   @Column({
@@ -47,10 +52,20 @@ export class Payment {
 
   @Column({
     type: 'enum',
+    enum: PaymentType,
+    default: PaymentType.FULL,
+  })
+  type!: PaymentType;
+
+  @Column({
+    type: 'enum',
     enum: PaymentStatus,
     default: PaymentStatus.SUCCEEDED,
   })
   status!: PaymentStatus;
+
+  @Column({ unique: true })
+  idempotencyKey!: string;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -6,12 +6,14 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, FindOptionsRelations } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { Credit, CreditStatus } from './entities/credit.entity';
 import { PaymentPlan, PaymentPlanStatus } from './entities/payment-plan.entity';
 import {
   Payment,
   PaymentChannel,
   PaymentStatus,
+  PaymentType,
 } from './entities/payment.entity';
 import { CreditLimit } from '../users/entities/credit-limit.entity';
 import { UsersService } from '../users/users.service';
@@ -31,18 +33,17 @@ export class CreditsService {
     private readonly usersService: UsersService,
     private readonly dataSource: DataSource,
     private readonly notificationsService: NotificationsService,
+    private readonly configService?: ConfigService,
   ) {}
 
   async applyForCredit(userId: string, applyCreditDto: ApplyCreditDto) {
     const { amount, termCount } = applyCreditDto;
 
-    // Transaction başlatıyoruz
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // 1. Kullanıcının limit durumunu doğrudan QueryRunner üzerinden çek
       const creditLimit = await queryRunner.manager.findOne(CreditLimit, {
         where: { userId },
       });
@@ -57,7 +58,6 @@ export class CreditsService {
         );
       }
 
-      // 2. Score Group konfigürasyon haritası
       const interestRates: Record<string, number> = {
         A: 0.015,
         B: 0.02,
@@ -78,7 +78,6 @@ export class CreditsService {
       const totalPayable = amount * (1 + monthlyInterestRate * termCount);
       const monthlyInstallment = Number((totalPayable / termCount).toFixed(2));
 
-      // 3. Kredi Kaydını Oluştur
       const credit = this.creditRepository.create({
         userId,
         amount,
@@ -90,7 +89,6 @@ export class CreditsService {
 
       const savedCredit = await queryRunner.manager.save(Credit, credit);
 
-      // 4. Taksit Planını Oluştur
       const paymentPlans: PaymentPlan[] = [];
       const now = new Date();
 
@@ -113,14 +111,12 @@ export class CreditsService {
 
       await queryRunner.manager.save(PaymentPlan, paymentPlans);
 
-      // 5. Kullanıcının Limitini Güncelle
       creditLimit.availableLimit = Number(creditLimit.availableLimit) - amount;
       creditLimit.usedAmount = Number(creditLimit.usedAmount) + amount;
       await queryRunner.manager.save(CreditLimit, creditLimit);
 
       await queryRunner.commitTransaction();
 
-      // Notification log kaydı atalım
       await this.notificationsService.createNotification(
         userId,
         NotificationType.CREDIT_APPROVED,
@@ -159,7 +155,6 @@ export class CreditsService {
     });
   }
 
-  // GET /credits/:id -> Tekil Kredi Detayı
   async getCreditById(userId: string, creditId: string): Promise<Credit> {
     const credit = await this.creditRepository.findOne({
       where: { id: creditId, userId },
@@ -173,7 +168,6 @@ export class CreditsService {
     return credit;
   }
 
-  // GET /credits/:id/payment-plans -> Taksit Planları (Canlı LATE Hesaplamalı)
   async getPaymentPlansByCreditId(userId: string, creditId: string) {
     await this.getCreditById(userId, creditId);
 
@@ -217,7 +211,6 @@ export class CreditsService {
     });
   }
 
-  // POST /credits/payment-plans/:id/pay -> Taksit Ödeme & Limit Restorasyonu
   async payPaymentPlan(paymentPlanId: string, userId: string) {
     const relations: FindOptionsRelations<PaymentPlan> = {
       credit: true,
@@ -246,7 +239,6 @@ export class CreditsService {
       });
     }
 
-    // Sıralı ödeme kontrolü: Önceden ödenmesi gereken bir taksit var mı?
     const previousUnpaidPlan = await this.paymentPlanRepository.findOne({
       where: [
         {
@@ -275,7 +267,6 @@ export class CreditsService {
     const today = new Date();
     const dueDate = new Date(plan.dueDate);
 
-    // LATE kontrolü: Eğer taksit LATE durumundaysa veya vadesi geçmişse gecikme faizi hesapla
     if (plan.status === PaymentPlanStatus.LATE || dueDate < today) {
       const diffTime = Math.abs(today.getTime() - dueDate.getTime());
       const daysLate = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -290,22 +281,20 @@ export class CreditsService {
     await queryRunner.startTransaction();
 
     try {
-      // 1. Immutable Payment kaydı at
       const payment = queryRunner.manager.create(Payment, {
         userId,
         paymentPlanId: plan.id,
         amount: totalToPay,
         channel: PaymentChannel.MANUAL,
+        type: PaymentType.FULL,
         status: PaymentStatus.SUCCEEDED,
       });
       await queryRunner.manager.save(Payment, payment);
 
-      // 2. Taksiti PAID yap ve ödeme tarihini kaydet
       plan.status = PaymentPlanStatus.PAID;
       plan.paidAt = new Date();
       await queryRunner.manager.save(PaymentPlan, plan);
 
-      // 3. Kredinin kalan taksit durumunu kontrol et
       const remainingUnpaidPlans = await queryRunner.manager.count(
         PaymentPlan,
         {
@@ -318,7 +307,6 @@ export class CreditsService {
 
       let isCreditCompleted = false;
 
-      // Tüm taksitler ödenmişse Kredi COMPLETED yapılır ve harcanan limit iade edilir
       if (remainingUnpaidPlans === 0) {
         isCreditCompleted = true;
 
@@ -326,7 +314,6 @@ export class CreditsService {
           status: CreditStatus.COMPLETED,
         });
 
-        // Limit iadesi doğrudan QueryRunner üzerinden
         const creditLimit = await queryRunner.manager.findOne(CreditLimit, {
           where: { userId },
         });
@@ -344,7 +331,6 @@ export class CreditsService {
 
       await queryRunner.commitTransaction();
 
-      // Ödeme Başarı Bildirimi
       await this.notificationsService.createNotification(
         userId,
         NotificationType.PAYMENT_SUCCESS,
@@ -363,6 +349,131 @@ export class CreditsService {
         status: plan.status,
         paidAt: plan.paidAt,
         isCreditCompleted,
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async previewSnooze(paymentPlanId: string, userId: string) {
+    const plan = await this.paymentPlanRepository.findOne({
+      where: { id: paymentPlanId },
+      relations: { credit: true },
+    });
+
+    if (!plan || plan.credit.userId !== userId) {
+      throw new NotFoundException({
+        error: 'PLAN_NOT_FOUND',
+        message: 'Ödeme planı bulunamadı.',
+      });
+    }
+
+    if (plan.status === PaymentPlanStatus.LATE) {
+      throw new BadRequestException({
+        error: 'CANNOT_SNOOZE_LATE_PLAN',
+        message: 'Gecikmeye düşmüş bir taksit ertelenemez.',
+      });
+    }
+
+    if (plan.status !== PaymentPlanStatus.UNPAID) {
+      throw new BadRequestException({
+        error: 'PAYMENT_PLAN_NOT_PAYABLE',
+        message: 'Yalnızca ödenmemiş taksitler ertelenebilir.',
+      });
+    }
+
+    const maxSnoozeCount = Number(
+      this.configService?.get('MAX_SNOOZE_COUNT') ??
+        process.env.MAX_SNOOZE_COUNT ??
+        2,
+    );
+
+    if (plan.snoozeCount >= maxSnoozeCount) {
+      throw new BadRequestException({
+        error: 'SNOOZE_LIMIT_REACHED',
+        message: `Bu taksit için maksimum erteleme sınırına (${maxSnoozeCount}) ulaşıldı.`,
+      });
+    }
+
+    const snoozeFeeRate = Number(
+      this.configService?.get('SNOOZE_FEE_RATE') ??
+        process.env.SNOOZE_FEE_RATE ??
+        0.05,
+    );
+    const snoozeExtensionDays = Number(
+      this.configService?.get('SNOOZE_EXTENSION_DAYS') ??
+        process.env.SNOOZE_EXTENSION_DAYS ??
+        30,
+    );
+
+    const installmentAmount = Number(plan.amount);
+    const snoozeFee = Number((installmentAmount * snoozeFeeRate).toFixed(2));
+
+    const currentDueDate = new Date(plan.dueDate);
+    const newDueDate = new Date(currentDueDate);
+    newDueDate.setDate(newDueDate.getDate() + snoozeExtensionDays);
+
+    return {
+      paymentPlanId: plan.id,
+      installmentNo: plan.installmentNo,
+      installmentAmount,
+      snoozeFee,
+      snoozeFeeRate,
+      currentDueDate: plan.dueDate,
+      newDueDate: newDueDate.toISOString().split('T')[0],
+      currentSnoozeCount: plan.snoozeCount,
+      maxSnoozeCount,
+    };
+  }
+
+  async snoozePaymentPlan(
+    paymentPlanId: string,
+    userId: string,
+    idempotencyKey?: string,
+  ) {
+    const preview = await this.previewSnooze(paymentPlanId, userId);
+
+    const plan = await this.paymentPlanRepository.findOne({
+      where: { id: paymentPlanId },
+      relations: { credit: true },
+    });
+
+    if (!plan) {
+      throw new NotFoundException('Ödeme planı bulunamadı.');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const payment = queryRunner.manager.create(Payment, {
+        userId,
+        paymentPlanId: plan.id,
+        amount: preview.snoozeFee,
+        channel: PaymentChannel.MANUAL,
+        type: PaymentType.SNOOZE,
+        status: PaymentStatus.SUCCEEDED,
+        idempotencyKey: idempotencyKey || `snooze_${plan.id}_${Date.now()}`,
+      });
+      await queryRunner.manager.save(Payment, payment);
+
+      plan.dueDate = preview.newDueDate;
+      plan.snoozeCount = Number(plan.snoozeCount) + 1;
+      await queryRunner.manager.save(PaymentPlan, plan);
+
+      await queryRunner.commitTransaction();
+
+      return {
+        message: 'Taksit başarıyla ertelendi.',
+        paymentId: payment.id,
+        paymentPlanId: plan.id,
+        snoozeFeePaid: preview.snoozeFee,
+        newDueDate: preview.newDueDate,
+        snoozeCount: plan.snoozeCount,
       };
     } catch (err) {
       await queryRunner.rollbackTransaction();

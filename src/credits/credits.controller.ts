@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
   Req,
+  Headers,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -37,13 +38,11 @@ interface RequestWithUser extends Request {
 export class CreditsController {
   constructor(private readonly creditsService: CreditsService) {}
 
-  // Helper method: req.user içerisinden userId'yi güvenli şekilde alır
   private extractUserId(req: RequestWithUser): string {
     const user = req?.user;
     return user?.userId || user?.id || user?.sub || '1';
   }
 
-  // 1. PUBLIC: Borç Hesaplayıcı
   @Get('calculator')
   @ApiOperation({
     summary: 'Kredi ödeme planı ve gecikme faizi hesaplayıcısı',
@@ -63,7 +62,6 @@ export class CreditsController {
     );
   }
 
-  // 2. AUTHENTICATED: Kullanıcının Çektiği Tüm Krediler
   @Get('me')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
@@ -75,7 +73,47 @@ export class CreditsController {
     return this.creditsService.getMyCredits(userId);
   }
 
-  // 3. AUTHENTICATED: Taksit Ödeme (Spesifik Route - Wildcard'ların Üstünde Olmalı)
+  @Get('payment-plans/:id/snooze/preview')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Taksit erteleme (snooze) önizlemesi ve ücret hesabı',
+  })
+  @ApiParam({ name: 'id', description: 'Payment Plan (Taksit) ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Erteleme ücreti ve yeni vade tarihi bilgisi döner.',
+  })
+  async previewSnooze(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const userId = this.extractUserId(req);
+    return this.creditsService.previewSnooze(id, userId);
+  }
+
+  @Post('payment-plans/:id/snooze')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Taksiti ertele (Snooze bedeli ödenir ve vade 30 gün uzatılır)',
+  })
+  @ApiParam({ name: 'id', description: 'Payment Plan (Taksit) ID' })
+  @ApiHeader({
+    name: 'X-Idempotency-Key',
+    description: 'Çift istek önleyici benzersiz anahtar',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Taksit başarıyla ertelendi.',
+  })
+  async snoozePaymentPlan(
+    @Req() req: RequestWithUser,
+    @Param('id') id: string,
+    @Headers('x-idempotency-key') idempotencyKey?: string,
+  ) {
+    const userId = this.extractUserId(req);
+    return this.creditsService.snoozePaymentPlan(id, userId, idempotencyKey);
+  }
+
   @Post('payment-plans/:id/pay')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, IdempotencyGuard)
@@ -101,7 +139,6 @@ export class CreditsController {
     return this.creditsService.payPaymentPlan(id, userId);
   }
 
-  // 4. AUTHENTICATED: Kredi Başvurusu
   @Post('apply')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
@@ -118,7 +155,6 @@ export class CreditsController {
     return this.creditsService.applyForCredit(userId, applyCreditDto);
   }
 
-  // 5. AUTHENTICATED: Kredinin Taksit Planları
   @Get(':id/payment-plans')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
@@ -132,7 +168,6 @@ export class CreditsController {
     return this.creditsService.getPaymentPlansByCreditId(userId, id);
   }
 
-  // 6. AUTHENTICATED: Tek Bir Kredinin Detayı (Wildcard en alta alındı)
   @Get(':id')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)

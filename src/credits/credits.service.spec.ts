@@ -2,9 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, QueryRunner } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { CreditsService } from './credits.service';
 import { Credit } from './entities/credit.entity';
-import { PaymentPlan } from './entities/payment-plan.entity';
+import { PaymentPlan, PaymentPlanStatus } from './entities/payment-plan.entity';
 import { Payment } from './entities/payment.entity';
 import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -32,6 +33,9 @@ describe('CreditsService', () => {
       create: jest.fn().mockImplementation((dto: Partial<PaymentPlan>) => dto),
       find: jest.fn(),
       findOne: jest.fn(),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     paymentRepoMock = {
@@ -39,7 +43,9 @@ describe('CreditsService', () => {
         id: 'payment-1',
         ...dto,
       })),
-      save: jest.fn(),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     queryRunnerMock = {
@@ -78,6 +84,15 @@ describe('CreditsService', () => {
       getUserNotifications: jest.fn().mockResolvedValue([]),
     };
 
+    const configServiceMock = {
+      get: jest.fn((key: string, defaultValue?: any) => {
+        if (key === 'MAX_SNOOZE_COUNT') return 2;
+        if (key === 'SNOOZE_FEE_RATE') return 0.05;
+        if (key === 'SNOOZE_EXTENSION_DAYS') return 30;
+        return defaultValue;
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CreditsService,
@@ -108,6 +123,10 @@ describe('CreditsService', () => {
         {
           provide: NotificationsService,
           useValue: notificationsServiceMock,
+        },
+        {
+          provide: ConfigService,
+          useValue: configServiceMock,
         },
       ],
     }).compile();
@@ -258,6 +277,80 @@ describe('CreditsService', () => {
       expect(result.interestRate).toBe(0.015);
       expect(result.lateFeeRate).toBe(0.0005);
       expect(result.schedule).toHaveLength(3);
+    });
+  });
+
+  describe('previewSnooze', () => {
+    it('should preview snooze calculation correctly for unpaid plan', async () => {
+      const mockPlan = {
+        id: 'plan-1',
+        installmentNo: 1,
+        amount: 1000,
+        dueDate: '2026-10-01',
+        status: PaymentPlanStatus.UNPAID,
+        snoozeCount: 0,
+        credit: { userId: 'user-1' },
+      };
+
+      paymentPlanRepoMock.findOne.mockResolvedValue(mockPlan);
+
+      const result = await service.previewSnooze('plan-1', 'user-1');
+
+      expect(result.installmentAmount).toBe(1000);
+      expect(result.snoozeFee).toBe(50);
+      expect(result.snoozeFeeRate).toBe(0.05);
+      expect(result.newDueDate).toBe('2026-10-31');
+    });
+
+    it('should throw BadRequestException if plan is LATE', async () => {
+      const mockPlan = {
+        id: 'plan-1',
+        status: PaymentPlanStatus.LATE,
+        credit: { userId: 'user-1' },
+      };
+
+      paymentPlanRepoMock.findOne.mockResolvedValue(mockPlan);
+
+      await expect(service.previewSnooze('plan-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if max snooze count reached', async () => {
+      const mockPlan = {
+        id: 'plan-1',
+        status: PaymentPlanStatus.UNPAID,
+        snoozeCount: 2,
+        credit: { userId: 'user-1' },
+      };
+
+      paymentPlanRepoMock.findOne.mockResolvedValue(mockPlan);
+
+      await expect(service.previewSnooze('plan-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe('snoozePaymentPlan', () => {
+    it('should successfully snooze plan and record snooze payment', async () => {
+      const mockPlan = {
+        id: 'plan-1',
+        installmentNo: 1,
+        amount: 1000,
+        dueDate: '2026-10-01',
+        status: PaymentPlanStatus.UNPAID,
+        snoozeCount: 0,
+        credit: { userId: 'user-1' },
+      };
+
+      paymentPlanRepoMock.findOne.mockResolvedValue(mockPlan);
+
+      const result = await service.snoozePaymentPlan('plan-1', 'user-1');
+
+      expect(result.message).toContain('başarıyla ertelendi');
+      expect(result.snoozeFeePaid).toBe(50);
+      expect(queryRunnerMock.commitTransaction).toHaveBeenCalled();
     });
   });
 });

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import { CreditsController } from './credits.controller';
 import { CreditsService } from './credits.service';
 import { Credit } from './entities/credit.entity';
@@ -12,6 +13,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Credit, PaymentPlan, Payment]),
+    ConfigModule,
     UsersModule,
     RedisModule,
     NotificationsModule,
