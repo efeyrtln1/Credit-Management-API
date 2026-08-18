@@ -85,12 +85,14 @@ describe('CreditsService', () => {
     };
 
     const configServiceMock = {
-      get: jest.fn((key: string, defaultValue?: any) => {
-        if (key === 'MAX_SNOOZE_COUNT') return 2;
-        if (key === 'SNOOZE_FEE_RATE') return 0.05;
-        if (key === 'SNOOZE_EXTENSION_DAYS') return 30;
-        return defaultValue;
-      }),
+      get: jest.fn(
+        <T = unknown>(key: string, defaultValue?: T): T | number | null => {
+          if (key === 'MAX_SNOOZE_COUNT') return 2;
+          if (key === 'SNOOZE_FEE_RATE') return 0.05;
+          if (key === 'SNOOZE_EXTENSION_DAYS') return 30;
+          return defaultValue ?? null;
+        },
+      ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
